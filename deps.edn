@@ -1,0 +1,11 @@
+{:deps {org.clojure/clojure {:mvn/version "1.10.1"}
+        org.clojure/core.async {:mvn/version "0.4.490"}
+        tick {:mvn/version "0.4.19-alpha"}
+        henryw374/time-specs
+        {:git/url "https://github.com/henryw374/time-specs.git"
+         :sha "b7c6dd6652f99fee56e860493574a72f166e85d0"}}
+
+ :aliases
+ {:test
+  {:extra-paths ["test"]
+   :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-529"}}}}}
