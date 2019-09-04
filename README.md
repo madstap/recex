@@ -51,7 +51,15 @@ A recex is a vector containing at least one time component.
 Multiple times can be specified with a set.
 
 ```clojure
-[#{#time/time "09:00" #time/time "17:00"} #time/zone "Europe/Oslo"]
+[#{#time/time "09:00"
+   #time/time "17:00"} #time/zone "Europe/Oslo"]
+```
+
+Multiple recexes can themselves be combined by using a set.
+
+```clojure
+#{[#time/time "12:00" #time/zone "Europe/Oslo"]
+  [#time/time "12:00" #time/zone "America/Sao_Paulo"]}
 ```
 
 ## Clojure API

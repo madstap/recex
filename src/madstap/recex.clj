@@ -8,18 +8,26 @@
    [tick.core :as t]
    [time-specs.core :as ts]))
 
-(s/def ::recex
+(s/def ::inner-recex
   (s/cat :time (s/or :set (s/coll-of ts/local-time? :kind set?)
                      :single ts/local-time?)
          :tz (s/? ts/zone-id?)))
 
-(defn normalize [recex]
+(s/def ::recex
+  (s/or :set (s/coll-of ::inner-recex :kind set?)
+        :single ::inner-recex))
+
+(defn normalize-inner [conformed-recex]
   (let [{tz :tz
          [time-type time] :time
          :or {tz (t/zone "UTC")}}
-        (s/conform ::recex recex)]
+        conformed-recex]
     {:times (if (= :single time-type) #{time} time)
      :tz tz}))
+
+(defn normalize [recex]
+  (let [[recex-type inner] (s/conform ::recex recex)]
+    (into #{} (map normalize-inner) (if (= :single recex-type) #{inner} inner))))
 
 (defn first-date
   "Given an zoned or offset date time `now` and a time `time`,
@@ -65,10 +73,11 @@
        (map #(iterate-days (first-time now % tz)))
        (apply interleave-time-seqs)))
 
+(defn inner-times [now {:keys [times tz]}]
+  (times-of-day now times tz))
+
 (defn times
   ([recex]
    (times (t/now) recex))
   ([now recex]
-   (let [{:keys [times tz] :as foo}
-         (normalize recex)]
-     (times-of-day now times tz))))
+   (->> (normalize recex) (map #(inner-times now %)) (apply interleave-time-seqs))))
