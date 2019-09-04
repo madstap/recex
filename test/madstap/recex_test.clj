@@ -1,8 +1,8 @@
-(ns madstap.recurring-test
+(ns madstap.recex-test
   (:require
    [clojure.test :refer [deftest testing is are run-tests test-var]]
    [tick.core :as t]
-   [madstap.recurring :as rec]))
+   [madstap.recex :as rec]))
 
 (deftest simple-times-of-day-test
   (is (= [#time/offset-date-time "2019-09-04T01:30+01:00"

@@ -1,4 +1,4 @@
-(ns madstap.recurring
+(ns madstap.recex
   (:require
    [cljc.java-time.day-of-week :as day-of-week]
    [cljc.java-time.zoned-date-time :as zoned-date-time]
