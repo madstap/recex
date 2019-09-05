@@ -51,6 +51,17 @@
                            13
                            #time/time "00:00"])))))
 
+(deftest negative-days-of-week-and-month
+  (is (= [#time/zoned-date-time "2019-09-30T12:00Z[UTC]"
+          #time/zoned-date-time "2019-10-28T12:00Z[UTC]"]
+         (take 2 (rec/times
+                  #time/instant "2019-09-03T22:00:00Z"
+                  [[-1 #time/day-of-week "MONDAY"] #time/time "12:00"]))))
+
+  (is (= [#time/zoned-date-time "2019-12-30T12:00Z[UTC]"
+          #time/zoned-date-time "2020-03-30T12:00Z[UTC]"]
+         (take 2 (rec/times [#time/day-of-week "MONDAY" -2 #time/time "12:00"])))))
+
 (deftest triple-witching-days
   (is (= [#time/zoned-date-time "2019-03-15T15:00-04:00[America/New_York]"
           #time/zoned-date-time "2019-06-21T15:00-04:00[America/New_York]"

@@ -64,17 +64,23 @@ Multiple recexes can themselves be combined by using a set.
 ```
 
 The time slot is the only required one, but you can also choose any
-combination of months, days of week and days of months (in that order).
+combination of months, days of week and days of month (in that order).
 
-Just like times of day, you can OR them together by putting them in a set.
+Month and day of week are java time types, while day of month is an integer.
+Days of week can also be specified to be the nth day-of-week in that month,
+by using a vector of [nth day] instead of just day.
 
-Days of week can also be specified to be the nth day-of-week in that month, by
+Both nth day of week and day of month can be negative numbers, in which
+`[-1 #time/day-of-week "FRIDAY"]` means the last friday of the month,
+and -1 means the last day of the month.
+
+Just like times of day, you can `OR` them together by putting them in a set.
 
 Some examples will make this clearer:
 
 ```clojure
 ;; https://en.wikipedia.org/wiki/Triple_witching_hour
-;; Every third friday in march, june, september and december.
+;; 15:00 every third friday in March, June, September and December New York time.
 [#{#time/month "MARCH"     #time/month "JUNE"
    #time/month "SEPTEMBER" #time/month "DECEMBER"}
  [3 #time/day-of-week "FRIDAY"]
@@ -83,10 +89,45 @@ Some examples will make this clearer:
 
 ;; Midnight every friday the 13th
 [#time/day-of-week "FRIDAY" 13 #time/time "00:00"]
+
+;; The last monday of each month at noon.
+[[-1 #time/day-of-week "MONDAY"] #time/time "12:00"]
+
+;; The second to last day of each month that is also a monday, at noon.
+[#time/day-of-week "MONDAY" -2 #time/time "12:00"]
 ```
 
 ## Clojure API
 
+Require the namespace:
+
+```clojure
+(ns my.app
+  (:require
+   [madstap.recex :as recex]
+   [tick.core :as t]))
+```
+
+The `recex/time` function generates an infinite sequence of times from a recex.
+It takes a time `now` which can be either an instant, zoned-date-time
+or offset-date-time, (ie anything that represents an instant in time) and a recex.
+
+`now` can be omitted, in which case it will use `t/now`, but it's
+not recommended to use the implicit now except for experimenting at the repl
+because passing `now` down from higher in the call stack makes testing easier.
+
+(Remember to `take` when experimenting at the repl, it's an infinite sequence)
+
+```Clojure
+(take 2 (recex/times (t/now) [#time/time "00:00"]))
+;; => (#time/zoned-date-time "2019-09-06T00:00Z[UTC]"
+;;     #time/zoned-date-time "2019-09-07T00:00Z[UTC]")
+
+(take 2 (recex/times [#time/time "00:00"]))
+;; => (#time/zoned-date-time "2019-09-06T00:00Z[UTC]"
+;;     #time/zoned-date-time "2019-09-07T00:00Z[UTC]")
+
+```
 
 ## Prior art
 
