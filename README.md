@@ -126,8 +126,26 @@ because passing `now` down from higher in the call stack makes testing easier.
 (take 2 (recex/times [#time/time "00:00"]))
 ;; => (#time/zoned-date-time "2019-09-06T00:00Z[UTC]"
 ;;     #time/zoned-date-time "2019-09-07T00:00Z[UTC]")
-
 ```
+
+## Caveats/warnings
+
+### Impossible combinations
+
+Specifying an impossible recex is not considered valid, but currently
+this is not checked. For example:
+
+```clojure
+;; The last friday of the month, that is also the 1st of the month.
+[[-1 #time/day-of-week "FRIDAY"] 1 #time/time "12:00"]
+```
+
+This is an impossible combination, and the current behavior is an infinite loop.
+So don't accept user defined recexes in api endpoints without at least a timeout,
+lest you open yourself up to denial of service attacks.
+
+Doing some date math to validate whether a recex is impossible should be doable,
+but may be non-trivial. PRs welcome.
 
 ## Prior art
 
