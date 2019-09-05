@@ -9,10 +9,11 @@ Still figuring out the api, breaking changes are likely.
 
 ## Rationale
 
-In the [chime's readme](https://github.com/jarohen/chime#the-big-idea-behind-chime)
+In the [chime readme](https://github.com/jarohen/chime#the-big-idea-behind-chime)
 the author writes about how it tries to be the simplest possible scheduler.
 It takes a sequence of times for executing a function, which makes it
-infinitely flexible, it's just clojure code.
+infinitely flexible, it's just clojure code. You will never hit a wall where
+it's very hard, or impossible, to express what you need.
 
 This works pretty well, but there are some tradeoffs.
 
