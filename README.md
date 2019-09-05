@@ -41,6 +41,7 @@ sequence of times itself.
 A recex is a vector containing at least one time component.
 
 ```clojure
+;; Each day at 6 in the afternoon.
 [#time/time "18:00"]
 
 ;; When not specified, the time zone defaults to UTC. The above is the same as:
@@ -60,6 +61,28 @@ Multiple recexes can themselves be combined by using a set.
 ```clojure
 #{[#time/time "12:00" #time/zone "Europe/Oslo"]
   [#time/time "12:00" #time/zone "America/Sao_Paulo"]}
+```
+
+The time slot is the only required one, but you can also choose any
+combination of months, days of week and days of months (in that order).
+
+Just like times of day, you can OR them together by putting them in a set.
+
+Days of week can also be specified to be the nth day-of-week in that month, by
+
+Some examples will make this clearer:
+
+```clojure
+;; https://en.wikipedia.org/wiki/Triple_witching_hour
+;; Every third friday in march, june, september and december.
+[#{#time/month "MARCH"     #time/month "JUNE"
+   #time/month "SEPTEMBER" #time/month "DECEMBER"}
+ [3 #time/day-of-week "FRIDAY"]
+ #time/time "15:00"
+ #time/zone "America/New_York"]
+
+;; Midnight every friday the 13th
+[#time/day-of-week "FRIDAY" 13 #time/time "00:00"]
 ```
 
 ## Clojure API
