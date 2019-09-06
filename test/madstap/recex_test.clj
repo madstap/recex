@@ -4,6 +4,13 @@
    [tick.core :as t]
    [madstap.recex :as rec]))
 
+(deftest empty-recex
+  (is (= [#time/zoned-date-time "2019-09-04T00:00Z[UTC]"
+          #time/zoned-date-time "2019-09-05T00:00Z[UTC]"
+          #time/zoned-date-time "2019-09-06T00:00Z[UTC]"]
+         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
+                            [])))))
+
 (deftest simple-times-of-day-test
   (is (= [#time/offset-date-time "2019-09-04T01:30+01:00"
           #time/offset-date-time "2019-09-05T01:30+01:00"

@@ -36,14 +36,17 @@
          (s/cat :month (s/? (nested-set-of ts/month?))
                 :day-of-week (s/? (nested-set-of ::day-of-week))
                 :day-of-month (s/? (nested-set-of ::day-of-month))
-                :time (nested-set-of ts/local-time?)
+                :time (s/? (nested-set-of ts/local-time?))
                 :tz (s/? (nested-set-of ts/zone-id?)))))
 
 (s/def ::recex
   (nested-set-of ::inner-recex))
 
 (defn normalize-inner [conformed-recex]
-  (map #(assoc conformed-recex :tz %) (:tz conformed-recex #{(t/zone "UTC")})))
+  (map #(-> conformed-recex
+            (assoc :tz %)
+            (update :time (fnil identity #{(t/time "00:00")})))
+       (:tz conformed-recex #{(t/zone "UTC")})))
 
 (defn normalize [recex]
   (into #{} (mapcat normalize-inner) (s/conform ::recex recex)))
