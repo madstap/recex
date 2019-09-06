@@ -7,6 +7,15 @@ express an infinite series of recurring times.
 
 Still figuring out the api, breaking changes are likely.
 
+## Usage
+
+I haven't deployed to clojars yet, but you can depend on the library with `deps.edn`.
+
+```clojure
+madstap/recex {:git/url "https://github.com/madstap/recex.git"
+               :sha "4133259c26620b8f13757ac2bb3f866230def462"}
+```
+
 ## Rationale
 
 In the [chime readme](https://github.com/jarohen/chime#the-big-idea-behind-chime)
