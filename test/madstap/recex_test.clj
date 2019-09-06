@@ -32,13 +32,21 @@
                                #time/time "02:30"}
                              #time/zone "America/Sao_Paulo"])))))
 
-(deftest combining-recexes
+(deftest multiple-time-zones
   (is (= [#time/zoned-date-time "2019-09-04T12:00+02:00[Europe/Oslo]"
           #time/zoned-date-time "2019-09-04T12:00-03:00[America/Sao_Paulo]"
           #time/zoned-date-time "2019-09-05T12:00+02:00[Europe/Oslo]"]
          (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
+                            [#time/time "12:00" #{#time/zone "Europe/Oslo"
+                                                  #time/zone "America/Sao_Paulo"}])))))
+
+(deftest combining-recexes
+  (is (= [#time/zoned-date-time "2019-09-04T12:00+02:00[Europe/Oslo]"
+          #time/zoned-date-time "2019-09-04T14:00-03:00[America/Sao_Paulo]"
+          #time/zoned-date-time "2019-09-05T12:00+02:00[Europe/Oslo]"]
+         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
                             #{[#time/time "12:00" #time/zone "Europe/Oslo"]
-                              [#time/time "12:00" #time/zone "America/Sao_Paulo"]})))))
+                              [#time/time "14:00" #time/zone "America/Sao_Paulo"]})))))
 
 (deftest friday-13th
   (is (= [#time/zoned-date-time "2019-09-13T00:00Z[UTC]"

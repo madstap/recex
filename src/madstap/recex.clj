@@ -32,30 +32,37 @@
                                   :single ::day-of-month))
          :time (s/or :set (s/coll-of ts/local-time? :kind set?)
                      :single ts/local-time?)
-         :tz (s/? ts/zone-id?)))
+         :tz (s/? (s/or :set (s/coll-of ts/zone-id? :kind set?)
+                        :single ts/zone-id?))))
 
 (s/def ::recex
   (s/or :set (s/coll-of ::inner-recex :kind set?)
         :single ::inner-recex))
 
 (defn normalize-inner [conformed-recex]
-  (let [{tz :tz
+  (let [{[tz-type tz] :tz
          [time-type time] :time
          [month-type month] :month
          [dow-type dow] :day-of-week
-         [dom-type dom] :day-of-month
-         :or {tz (t/zone "UTC")}}
-        conformed-recex]
-    (->> {:months (if (= :single month-type) #{month} month)
-          :days-of-week (if (= :single dow-type) #{dow} dow)
-          :days-of-month (if (= :single dom-type) #{dom} dom)
-          :times (if (= :single time-type) #{time} time)
-          :tz tz}
-         (medley/remove-vals nil?))))
+         [dom-type dom] :day-of-month}
+        conformed-recex
+
+        tzs (condp = tz-type,
+              :set tz
+              :single #{tz}
+              nil #{(t/zone "UTC")})]
+    (map (fn [tz]
+           (->> {:months (if (= :single month-type) #{month} month)
+                 :days-of-week (if (= :single dow-type) #{dow} dow)
+                 :days-of-month (if (= :single dom-type) #{dom} dom)
+                 :times (if (= :single time-type) #{time} time)
+                 :tz tz}
+                (medley/remove-vals nil?)))
+         tzs)))
 
 (defn normalize [recex]
   (let [[recex-type inner] (s/conform ::recex recex)]
-    (into #{} (map normalize-inner) (if (= :single recex-type) #{inner} inner))))
+    (into #{} (mapcat normalize-inner) (if (= :single recex-type) #{inner} inner))))
 
 ;; Added indirection so this doesn't break when making the switch to spec2
 (defn valid? [recex]
