@@ -62,7 +62,6 @@ don't know the dsl well.
 ## recex grammar
 
 A recex a vector with slots: `[month day-of-week day-of-month time time-zone]`.
-Only the time slot is required.
 
 The different slots are `AND`ed together, while sets in a single slot means `OR`.
 
@@ -72,6 +71,12 @@ The different slots are `AND`ed together, while sets in a single slot means `OR`
 
 ;; When not specified, the time zone defaults to UTC. The above is the same as:
 [#time/time "18:00" #time/zone "UTC"]
+
+;; When not specified, the time defaults to midnight. These are all the same:
+[]
+[#time/time "00:00"]
+[#time/time "00:00" #time/zone "UTC"]
+[#time/zone "UTC"]
 ```
 
 Multiple times can be specified with a set. This also goes for all the other slots.
