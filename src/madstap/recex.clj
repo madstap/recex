@@ -28,19 +28,19 @@
     (into #{} (mapcat flatten-sets) x)
     #{x}))
 
-(defmacro nested-set-of [spec]
+(defmacro nested-set-or-one-of [spec]
   `(s/and (s/conformer flatten-sets) (s/coll-of ~spec :kind set?)))
 
 (s/def ::inner-recex
   (s/and vector?
-         (s/cat :month (s/? (nested-set-of ts/month?))
-                :day-of-week (s/? (nested-set-of ::day-of-week))
-                :day-of-month (s/? (nested-set-of ::day-of-month))
-                :time (s/? (nested-set-of ts/local-time?))
-                :tz (s/? (nested-set-of ts/zone-id?)))))
+         (s/cat :month (s/? (nested-set-or-one-of ts/month?))
+                :day-of-week (s/? (nested-set-or-one-of ::day-of-week))
+                :day-of-month (s/? (nested-set-or-one-of ::day-of-month))
+                :time (s/? (nested-set-or-one-of ts/local-time?))
+                :tz (s/? (nested-set-or-one-of ts/zone-id?)))))
 
 (s/def ::recex
-  (nested-set-of ::inner-recex))
+  (nested-set-or-one-of ::inner-recex))
 
 (defn normalize-inner [conformed-recex]
   (map #(-> conformed-recex
