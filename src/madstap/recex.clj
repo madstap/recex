@@ -23,46 +23,30 @@
    (s/or :pos (s/int-in 1 (inc 31))
          :neg (s/int-in -31 (inc -1)))))
 
+(defn flatten-sets [x]
+  (if (set? x)
+    (into #{} (mapcat flatten-sets) x)
+    #{x}))
+
+(defmacro nested-set-of [spec]
+  `(s/and (s/conformer flatten-sets) (s/coll-of ~spec :kind set?)))
+
 (s/def ::inner-recex
-  (s/cat :month (s/? (s/or :set (s/coll-of ts/month? :kind set?)
-                           :single ts/month?))
-         :day-of-week (s/? (s/or :set (s/coll-of ::day-of-week :kind set?)
-                                 :single ::day-of-week))
-         :day-of-month (s/? (s/or :set (s/coll-of ::day-of-month :kind set?)
-                                  :single ::day-of-month))
-         :time (s/or :set (s/coll-of ts/local-time? :kind set?)
-                     :single ts/local-time?)
-         :tz (s/? (s/or :set (s/coll-of ts/zone-id? :kind set?)
-                        :single ts/zone-id?))))
+  (s/and vector?
+         (s/cat :month (s/? (nested-set-of ts/month?))
+                :day-of-week (s/? (nested-set-of ::day-of-week))
+                :day-of-month (s/? (nested-set-of ::day-of-month))
+                :time (nested-set-of ts/local-time?)
+                :tz (s/? (nested-set-of ts/zone-id?)))))
 
 (s/def ::recex
-  (s/or :set (s/coll-of ::inner-recex :kind set?)
-        :single ::inner-recex))
+  (nested-set-of ::inner-recex))
 
 (defn normalize-inner [conformed-recex]
-  (let [{[tz-type tz] :tz
-         [time-type time] :time
-         [month-type month] :month
-         [dow-type dow] :day-of-week
-         [dom-type dom] :day-of-month}
-        conformed-recex
-
-        tzs (condp = tz-type,
-              :set tz
-              :single #{tz}
-              nil #{(t/zone "UTC")})]
-    (map (fn [tz]
-           (->> {:months (if (= :single month-type) #{month} month)
-                 :days-of-week (if (= :single dow-type) #{dow} dow)
-                 :days-of-month (if (= :single dom-type) #{dom} dom)
-                 :times (if (= :single time-type) #{time} time)
-                 :tz tz}
-                (medley/remove-vals nil?)))
-         tzs)))
+  (map #(assoc conformed-recex :tz %) (:tz conformed-recex #{(t/zone "UTC")})))
 
 (defn normalize [recex]
-  (let [[recex-type inner] (s/conform ::recex recex)]
-    (into #{} (mapcat normalize-inner) (if (= :single recex-type) #{inner} inner))))
+  (into #{} (mapcat normalize-inner) (s/conform ::recex recex)))
 
 ;; Added indirection so this doesn't break when making the switch to spec2
 (defn valid? [recex]
@@ -112,9 +96,6 @@
 (defn month-filter [month]
   (fn [time]
     (= month (t/month time))))
-
-(defn abs [n]
-  (if (neg? n) (- n) n))
 
 (defn days-in-month [t]
   (t/day-of-month (t/last-day-of-month t)))
@@ -169,18 +150,18 @@
     (apply some-fn fs)
     (constantly true)))
 
-(defn inner-times [now {:keys [months days-of-week days-of-month times tz]}]
+(defn inner-times [now {:keys [month day-of-week day-of-month time tz]}]
   (let [pred (every-filter
-              (apply any-filter (map month-filter months))
+              (apply any-filter (map month-filter month))
               (apply any-filter (map (fn [[dow-type dow]]
                                        (case dow-type
                                          :day-of-week
                                          (day-of-week-filter dow)
                                          :nth-day-of-week
                                          (nth-day-of-week-filter (:n dow) (:day dow))))
-                                     days-of-week))
-              (apply any-filter (map day-of-month-filter days-of-month)))]
-    (sequence (filter pred) (times-of-day now times tz))))
+                                     day-of-week))
+              (apply any-filter (map day-of-month-filter day-of-month)))]
+    (sequence (filter pred) (times-of-day now time tz))))
 
 (defn times
   ([recex]

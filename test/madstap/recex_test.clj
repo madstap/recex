@@ -84,6 +84,10 @@
                  #time/time "15:00"
                  #time/zone "America/New_York"])))))
 
+(deftest flatten-sets-test
+  (is (= #{0 1 2 3 4} (rec/flatten-sets #{0 #{1} #{2} #{#{3} #{#{4}}}})))
+  (is (= #{1} (rec/flatten-sets 1))))
+
 (deftest filters
   (is (true?
        ((rec/month-filter #time/month "SEPTEMBER")
