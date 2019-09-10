@@ -9,19 +9,50 @@
    [tick.core :as t]
    [time-specs.core :as ts]))
 
+(defn str* [x]
+  (if (ident? x) (name x) (str x)))
+
+ (def parse-month
+  (comp t/parse-month str*))
+
+(s/def ::month
+  (s/and (s/conformer parse-month) ts/month?))
+
+(def parse-dow
+  (comp t/parse-day str*))
+
+(s/def ::dow
+  (s/and (s/conformer parse-dow) ts/day-of-week?))
+
 (s/def ::day-of-week
-  (s/or :day-of-week ts/day-of-week?
+  (s/or :day-of-week ::dow
         :nth-day-of-week
         (s/and vector?
                (s/cat :n (s/nonconforming
                           (s/or :pos (s/int-in 1 (inc 5))
                                 :neg (s/int-in -5 (inc -1))))
-                      :day ts/day-of-week?))))
+                      :day ::dow))))
 
 (s/def ::day-of-month
   (s/nonconforming
    (s/or :pos (s/int-in 1 (inc 31))
          :neg (s/int-in -31 (inc -1)))))
+
+(defn parse-time [x]
+  (cond (ts/local-time? x) x
+        (string? x) (try (t/parse x) (catch Exception _ nil))
+        :else nil))
+
+(s/def ::time
+  (s/and (s/conformer parse-time) ts/local-time?))
+
+(defn parse-tz [x]
+  (cond (ts/zone-id? x) x
+        (string? x) (try (t/zone x) (catch Exception _ nil))
+        :else nil))
+
+(s/def ::tz
+  (s/and (s/conformer parse-tz) ts/zone-id?))
 
 (defn flatten-sets [x]
   (if (set? x)
@@ -33,11 +64,11 @@
 
 (s/def ::inner-recex
   (s/and vector?
-         (s/cat :month (s/? (nested-set-or-one-of ts/month?))
+         (s/cat :month (s/? (nested-set-or-one-of ::month))
                 :day-of-week (s/? (nested-set-or-one-of ::day-of-week))
                 :day-of-month (s/? (nested-set-or-one-of ::day-of-month))
-                :time (s/? (nested-set-or-one-of ts/local-time?))
-                :tz (s/? (nested-set-or-one-of ts/zone-id?)))))
+                :time (s/? (nested-set-or-one-of ::time))
+                :tz (s/? (nested-set-or-one-of ::tz)))))
 
 (s/def ::recex
   (nested-set-or-one-of ::inner-recex))

@@ -4,6 +4,9 @@
    [tick.core :as t]
    [madstap.recex :as rec]))
 
+(defn yr [y]
+  (t/instant (str y "-01-01T00:00:00Z")))
+
 (deftest empty-recex
   (is (= [#time/zoned-date-time "2019-09-04T00:00Z[UTC]"
           #time/zoned-date-time "2019-09-05T00:00Z[UTC]"
@@ -90,6 +93,17 @@
                  [3 #time/day-of-week "FRIDAY"]
                  #time/time "15:00"
                  #time/zone "America/New_York"])))))
+
+(deftest terse-syntax
+  (is (= [#time/zoned-date-time "2019-09-13T00:00+03:00[Europe/Helsinki]"
+          #time/zoned-date-time "2019-12-13T00:00+02:00[Europe/Helsinki]"]
+         (take 2 (rec/times (yr 2019)
+                            [#{:september :december}
+                             :friday 13
+                             "00:00"
+                             "Europe/Helsinki"]))))
+  (is (= #time/zoned-date-time "2023-10-13T00:00Z[UTC]"
+         (first (rec/times (yr 2019) [:october :friday 13])))))
 
 (deftest flatten-sets-test
   (is (= #{0 1 2 3 4} (rec/flatten-sets #{0 #{1} #{2} #{#{3} #{#{4}}}})))
