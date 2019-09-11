@@ -113,12 +113,18 @@
   (is (true?
        ((rec/month-filter #time/month "SEPTEMBER")
         #time/zoned-date-time "2019-09-04T14:48:55.382-03:00[America/Sao_Paulo]")))
+  (is (true?
+       ((rec/month-filter #time/month "SEPTEMBER")
+        #time/date "2019-09-04")))
   (is (false?
        ((rec/month-filter #time/month "JANUARY")
         #time/zoned-date-time "2019-09-04T14:48:55.382-03:00[America/Sao_Paulo]")))
   (is (true?
        ((rec/day-of-week-filter #time/day-of-week "MONDAY")
         #time/zoned-date-time "2019-09-30T14:39:39.983-03:00[America/Sao_Paulo]")))
+  (is (true?
+       ((rec/day-of-week-filter #time/day-of-week "MONDAY")
+        #time/date "2019-09-30")))
   (is (false?
        ((rec/day-of-week-filter #time/day-of-week "FRIDAY")
         #time/zoned-date-time "2019-09-30T14:39:39.983-03:00[America/Sao_Paulo]")))
@@ -129,5 +135,82 @@
        ((rec/nth-day-of-week-filter 4 #time/day-of-week "MONDAY")
         #time/zoned-date-time "2019-09-30T14:39:39.983-03:00[America/Sao_Paulo]")))
   (is (false?
+       ((rec/nth-day-of-week-filter 4 #time/day-of-week "MONDAY")
+        #time/date "2019-09-30")))
+  (is (false?
        ((rec/nth-day-of-week-filter 5 #time/day-of-week "FRIDAY")
         #time/zoned-date-time "2019-09-30T14:39:39.983-03:00[America/Sao_Paulo]"))))
+
+
+;; This test is not meant to be authoritative,
+;; but to describe the current behavior so I know if it changes.
+(deftest dst-edge-cases
+  (testing "Going back"
+    (is (= [#time/zoned-date-time "2015-11-01T01:30-07:00[America/Los_Angeles]"
+            #time/zoned-date-time "2016-11-01T01:30-07:00[America/Los_Angeles]"]
+           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"])))))
+
+  (testing "Going forward"
+    (is (= [#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
+            #time/zoned-date-time "2020-03-31T03:30+02:00[Europe/Oslo]"]
+           (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"]))))
+
+    (is (= (repeat 2 #time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]")
+           (take 2 (rec/times (yr 2019) [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"]))))))
+
+(defn inc-hour [t]
+  (t/+ t (t/new-duration 1 :hours)))
+
+(comment
+  ;;;;;;;;;;;;;;;;;;
+  ;;; Going back
+
+  ;; When we go back an hour, there's an hour that repeats.
+  ;; In a naive implementation something scheduled at 01:30
+  ;; would happen twice that day.
+  (def back
+    (t/in #time/date-time "2015-11-01T01:00" #time/zone "America/Los_Angeles"))
+
+  back            ;=> #time/zoned-date-time "2015-11-01T01:00-07:00[America/Los_Angeles]"
+  (inc-hour back) ;=> #time/zoned-date-time "2015-11-01T01:00-08:00[America/Los_Angeles]"
+
+  ;; With the current behavior it happens only once.
+  ;; This is probably what you'd want, but people have strange requirements,
+  ;; so maybe it's really important that every one thirty at night is counted,
+  ;; even if they're only one hour apart.
+  (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"]))
+  ;; =>
+  ;; (#time/zoned-date-time "2015-11-01T01:30-07:00[America/Los_Angeles]"
+  ;;  #time/zoned-date-time "2016-11-01T01:30-07:00[America/Los_Angeles]")
+
+  ;; Another possible point of confusion is that the _first_
+  ;; one thirty at night is included (offset -7),
+  ;; but maybe you want the second one instead (offset -8).
+
+
+  ;;;;;;;;;;;;;;;;;;
+  ;; Going forward
+
+  ;; When we go forward an hour, there's an hour that is lost.
+  ;; In a naive implementation something scheduled at 02:30
+  ;; wouldn't happen that day.
+  (def fwd
+    (t/in #time/date-time "2019-03-31T01:00" #time/zone "Europe/Oslo"))
+
+  fwd            ;=> #time/zoned-date-time "2019-03-31T01:00+01:00[Europe/Oslo]"
+  (inc-hour fwd) ;=> #time/zoned-date-time "2019-03-31T03:00+02:00[Europe/Oslo]"
+
+  ;; With the current behavior it happens, but at 03:30.
+  ;; If you're scheduling something once a day, that's probably what you'd want.
+  (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"]))
+  ;; =>
+  ;; (#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
+  ;;  #time/zoned-date-time "2020-03-31T03:30+02:00[Europe/Oslo]")
+
+  ;; However, if you've scheduled something at both 02:30 and 03:30 then you're
+  ;; gonna have two events happening at the same time, which will be confusing.
+  (take 2 (rec/times (yr 2019) [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"]))
+  ;; =>
+  ;; (#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
+  ;;  #time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]")
+  )
