@@ -213,4 +213,20 @@
   ;; =>
   ;; (#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
   ;;  #time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]")
+
+  ;; Possible syntax for choosing which behavior you want.
+  ;; This would be equal to the naive implementation.
+  [:mar 31 #{"02:30" "03:30"} "Europe/Oslo" {:dst/backward :both
+                                             :dst/forward :skip}]
+
+  ;; All(?) possible values.
+  {:dst/backward #{:first :second :both}
+   :dst/forward #{:skip :include}}
+
+  ;; Defaults:
+  {:dst/backward :first
+   :dst/forward :include}
+
+  ;; The namespace dst should just be a shorthand for :madstap.recex/dst
+  ;; so the spec doesn't conflict with any user defined ones.
   )
