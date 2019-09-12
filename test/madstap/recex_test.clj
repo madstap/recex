@@ -1,6 +1,7 @@
 (ns madstap.recex-test
   (:require
    [clojure.test :refer [deftest testing is are run-tests test-var]]
+   [cljc.java-time.zoned-date-time :as zoned-date-time]
    [tick.core :as t]
    [madstap.recex :as rec]))
 
@@ -15,9 +16,9 @@
                             [])))))
 
 (deftest simple-times-of-day-test
-  (is (= [#time/offset-date-time "2019-09-04T01:30+01:00"
-          #time/offset-date-time "2019-09-05T01:30+01:00"
-          #time/offset-date-time "2019-09-06T01:30+01:00"]
+  (is (= [#time/zoned-date-time "2019-09-04T01:30+01:00"
+          #time/zoned-date-time "2019-09-05T01:30+01:00"
+          #time/zoned-date-time "2019-09-06T01:30+01:00"]
          (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
                             [#time/time "01:30" #time/zone "+01:00"]))))
 
@@ -141,22 +142,43 @@
        ((rec/nth-day-of-week-filter 5 #time/day-of-week "FRIDAY")
         #time/zoned-date-time "2019-09-30T14:39:39.983-03:00[America/Sao_Paulo]"))))
 
-
-;; This test is not meant to be authoritative,
-;; but to describe the current behavior so I know if it changes.
 (deftest dst-edge-cases
-  (testing "Going back"
+  (testing "Overlap"
     (is (= [#time/zoned-date-time "2015-11-01T01:30-07:00[America/Los_Angeles]"
             #time/zoned-date-time "2016-11-01T01:30-07:00[America/Los_Angeles]"]
-           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"])))))
+           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"]))
+           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"
+                                         {:dst/overlap :first}]))))
 
-  (testing "Going forward"
+    (is (= [(zoned-date-time/with-earlier-offset-at-overlap
+              #time/zoned-date-time "2015-11-01T01:30-07:00[America/Los_Angeles]")
+            (zoned-date-time/with-later-offset-at-overlap
+              #time/zoned-date-time "2015-11-01T01:30-08:00[America/Los_Angeles]")]
+           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"
+                                         {:dst/overlap :both}]))))
+
+    (is (= [(zoned-date-time/with-later-offset-at-overlap
+              #time/zoned-date-time "2015-11-01T01:30-08:00[America/Los_Angeles]")
+            #time/zoned-date-time "2016-11-01T01:30-07:00[America/Los_Angeles]"]
+           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"
+                                         {:dst/overlap :second}])))))
+
+  (testing "Gap"
     (is (= [#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
-            #time/zoned-date-time "2020-03-31T03:30+02:00[Europe/Oslo]"]
-           (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"]))))
+            #time/zoned-date-time "2020-03-31T02:30+02:00[Europe/Oslo]"]
+           (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"]))
+           (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"
+                                         {:dst/gap :include}]))))
 
     (is (= (repeat 2 #time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]")
-           (take 2 (rec/times (yr 2019) [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"]))))))
+           (take 2 (rec/times (yr 2019) [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"
+                                         {:dst/gap :include}]))))
+
+    (is (= [#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
+            #time/zoned-date-time "2020-03-31T02:30+02:00[Europe/Oslo]"]
+           (take 2 (rec/times (yr 2019)
+                              [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"
+                               {:dst/gap :skip}]))))))
 
 (defn inc-hour [t]
   (t/+ t (t/new-duration 1 :hours)))

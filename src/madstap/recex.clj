@@ -1,13 +1,15 @@
 (ns madstap.recex
   (:require
-   [cljc.java-time.day-of-week :as day-of-week]
    [cljc.java-time.instant :as instant]
-   [cljc.java-time.offset-date-time :as offset-date-time]
+   [cljc.java-time.local-date-time :as date-time]
+   [cljc.java-time.zone-id :as zone-id]
    [cljc.java-time.zoned-date-time :as zoned-date-time]
    [clojure.spec.alpha :as s]
+   [clojure.set :as set]
    [medley.core :as medley]
    [tick.core :as t]
-   [time-specs.core :as ts]))
+   [time-specs.core :as ts])
+  (:import (java.time.zone ZoneOffsetTransition ZoneRules)))
 
 (defn str* [x]
   (if (ident? x) (name x) (str x)))
@@ -54,6 +56,28 @@
 (s/def ::tz
   (s/and (s/conformer parse-tz) ts/zone-id?))
 
+(s/def :madstap.recex.dst/transition-type
+  (s/nilable #{:overlap :gap}))
+
+(defn dst-transition [tz date-time]
+  (let [rules ^ZoneRules (zone-id/get-rules tz)]
+    (when-some [^ZoneOffsetTransition tran (-> rules (.getTransition date-time))]
+      (if (.isOverlap tran) :overlap :gap))))
+
+(s/def :madstap.recex.dst/overlap
+  #{:first :second :both})
+
+(s/def :madstap.recex.dst/gap
+  #{:skip :include})
+
+(s/def ::dst-opts
+  (s/and
+   (s/conformer #(when (map? %)
+                   (set/rename-keys % {:dst/overlap :madstap.recex.dst/overlap
+                                       :dst/gap :madstap.recex.dst/gap})))
+   (s/keys :opt [:madstap.recex.dst/overlap
+                 :madstap.recex.dst/gap])))
+
 (defn flatten-sets [x]
   (if (set? x)
     (into #{} (mapcat flatten-sets) x)
@@ -68,15 +92,21 @@
                 :day-of-week (s/? (nested-set-or-one-of ::day-of-week))
                 :day-of-month (s/? (nested-set-or-one-of ::day-of-month))
                 :time (s/? (nested-set-or-one-of ::time))
-                :tz (s/? (nested-set-or-one-of ::tz)))))
+                :tz (s/? (nested-set-or-one-of ::tz))
+                :dst-opts (s/? ::dst-opts))))
 
 (s/def ::recex
   (nested-set-or-one-of ::inner-recex))
 
+(def dst-defaults
+  {:madstap.recex.dst/overlap :first
+   :madstap.recex.dst/gap :include})
+
 (defn normalize-inner [conformed-recex]
   (map #(-> conformed-recex
             (assoc :tz %)
-            (update :time (fnil identity #{(t/time "00:00")})))
+            (update :time (fnil identity #{(t/time "00:00")}))
+            (update :dst-opts (partial merge dst-defaults)))
        (:tz conformed-recex #{(t/zone "UTC")})))
 
 (defn normalize [recex]
@@ -107,21 +137,6 @@
       (t/inc date)
       date)))
 
-(defn first-time
-  [now time tz]
-  (let [date (-> now (t/in tz) (first-date time))]
-    (if (ts/zone-offset? tz)
-      (offset-date-time/of date time tz)
-      (zoned-date-time/of date time tz))))
-
-(defn inc-day [t]
-  (t/+ t (t/new-period 1 :days)))
-
-(defn times-of-day [now times tz]
-  (->> times
-       (map #(iterate inc-day (first-time now % tz)))
-       (apply interleave-time-seqs)))
-
 (defn month-filter [month]
   (fn [time]
     (= month (t/month time))))
@@ -143,7 +158,7 @@
 
 (defn days-of-week-in-month [t dow]
   (count
-   (->> (iterate inc-day (t/first-day-of-month t))
+   (->> (iterate t/inc (t/first-day-of-month t))
         (take (days-in-month t))
         (filter (day-of-week-filter dow)))))
 
@@ -155,7 +170,7 @@
   [t]
   (let [date (t/date t)]
     (count
-     (->> (iterate inc-day (t/first-day-of-month t))
+     (->> (iterate t/inc (t/first-day-of-month date))
           (medley/take-upto #(= date (t/date %)))
           (filter (day-of-week-filter (t/day-of-week t)))))))
 
@@ -179,21 +194,50 @@
     (apply some-fn fs)
     (constantly true)))
 
-(defn inner-times [now {:keys [month day-of-week day-of-month time tz]}]
-  (let [pred (every-filter
-              (apply any-filter (map month-filter month))
-              (apply any-filter (map (fn [[dow-type dow]]
-                                       (case dow-type
-                                         :day-of-week
-                                         (day-of-week-filter dow)
-                                         :nth-day-of-week
-                                         (nth-day-of-week-filter (:n dow) (:day dow))))
-                                     day-of-week))
-              (apply any-filter (map day-of-month-filter day-of-month)))]
-    (sequence (filter pred) (times-of-day now time tz))))
+(defn times-of-day [date times tz {:madstap.recex.dst/keys [overlap gap]}]
+  (->> (map #(date-time/of date %) times)
+       (mapcat (fn [dt]
+                 (let [zdt (zoned-date-time/of dt tz)]
+                   (if-some [transition-type (dst-transition tz dt)]
+                     (case transition-type
+                       :overlap
+                       (case overlap
+                         :first
+                         [(zoned-date-time/with-earlier-offset-at-overlap zdt)]
+                         :second
+                         [(zoned-date-time/with-later-offset-at-overlap zdt)]
+                         :both
+                         [(zoned-date-time/with-earlier-offset-at-overlap zdt)
+                          (zoned-date-time/with-later-offset-at-overlap zdt)])
+                       :gap (case gap
+                              :skip []
+                              :include [zdt]))
+                     [zdt]))))
+       (sort)))
+
+(defn inner-times [now {:keys [month day-of-week day-of-month time tz dst-opts]}]
+  (let [zoned-now (t/in now tz)
+        date-pred
+        (every-filter
+         (apply any-filter (map month-filter month))
+         (apply any-filter (map (fn [[dow-type dow]]
+                                  (case dow-type
+                                    :day-of-week
+                                    (day-of-week-filter dow)
+                                    :nth-day-of-week
+                                    (nth-day-of-week-filter (:n dow) (:day dow))))
+                                day-of-week))
+         (apply any-filter (map day-of-month-filter day-of-month)))]
+
+    (sequence (comp (filter date-pred)
+                    (mapcat #(times-of-day % time tz dst-opts))
+                    (drop-while #(t/< % zoned-now)))
+              (iterate t/inc (t/date zoned-now)))))
 
 (defn times
   ([recex]
    (times (t/now) recex))
   ([now recex]
-   (->> (normalize recex) (map #(inner-times now %)) (apply interleave-time-seqs))))
+   (->> (normalize recex)
+        (map #(inner-times (t/instant now) %))
+        (apply interleave-time-seqs))))
