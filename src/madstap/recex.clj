@@ -107,14 +107,9 @@
       (t/inc date)
       date)))
 
-(defn at-zone [inst tz]
-  (if (ts/zone-offset? tz)
-    (offset-date-time/with-offset-same-instant (t/offset-date-time inst) tz)
-    (zoned-date-time/with-zone-same-instant (t/zoned-date-time inst) tz)))
-
 (defn first-time
   [now time tz]
-  (let [date (-> now (at-zone tz) (first-date time))]
+  (let [date (-> now (t/in tz) (first-date time))]
     (if (ts/zone-offset? tz)
       (offset-date-time/of date time tz)
       (zoned-date-time/of date time tz))))
