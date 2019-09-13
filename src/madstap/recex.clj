@@ -18,8 +18,13 @@
  (def parse-month
   (comp t/parse-month str*))
 
-(s/def ::month
+(s/def ::month*
   (s/and (s/conformer parse-month) ts/month?))
+
+(s/def ::month
+  (s/and (s/or :range (s/coll-of (s/tuple ::month* ::month*))
+               :one ::month*)
+         (s/conformer second)))
 
 (def parse-dow
   (comp t/parse-day str*))
@@ -28,7 +33,10 @@
   (s/and (s/conformer parse-dow) ts/day-of-week?))
 
 (s/def ::day-of-week
-  (s/or :day-of-week ::dow
+  (s/or :day-of-week
+        (s/and (s/or :dow ::dow
+                     :range (s/coll-of (s/tuple ::dow ::dow)))
+               (s/conformer second))
         :nth-day-of-week
         (s/and vector?
                (s/cat :n (s/nonconforming
@@ -36,10 +44,15 @@
                                 :neg (s/int-in -5 (inc -1))))
                       :day ::dow))))
 
-(s/def ::day-of-month
+(s/def ::day-of-month*
   (s/nonconforming
    (s/or :pos (s/int-in 1 (inc 31))
          :neg (s/int-in -31 (inc -1)))))
+
+(s/def ::day-of-month
+  (s/nonconforming
+   (s/or :range (s/coll-of (s/tuple ::day-of-month* ::day-of-month*))
+         :one ::day-of-month*)))
 
 (defn parse-time [x]
   (cond (ts/local-time? x) x
@@ -177,9 +190,42 @@
   {:madstap.recex.dst/overlap :first
    :madstap.recex.dst/gap :include})
 
+(defn wrap-range [max start end]
+  (let [xs (cycle (range 1 (inc max)))]
+    (->> (nthnext xs (dec start))
+         (medley/take-upto #{end}))))
+
+(defn expand-dow-ranges [dows]
+  (into #{}
+        (mapcat (fn [[typee v :as dow]]
+                  (if (and (= :day-of-week typee)
+                           (map? v))
+                    (->> (reduce (fn [acc [start end]]
+                                   (->> (wrap-range 7 (t/int start) (t/int end))
+                                        (map t/day-of-week)
+                                        (into acc)))
+                                 #{}, v)
+                         (map (fn [d] [typee d])))
+                    [dow])))
+        dows))
+
+(defn expand-month-ranges [months]
+  (into #{}
+        (mapcat #(if (map? %)
+                   (reduce (fn [acc [start end]]
+                             (->> (wrap-range 12 (t/int start) (t/int end))
+                                  (map t/month)
+                                  (into acc)))
+                           #{}, %)
+                   #{%}))
+        months))
+
 (defn normalize-inner [conformed-recex]
   (map #(-> conformed-recex
             (assoc :tz %)
+            (update :month expand-month-ranges)
+            (update :day-of-week expand-dow-ranges)
+            (update :day-of-month expand-ranges)
             (update :time (fnil identity #{(t/time "00:00")}))
             (update :dst-opts (partial merge dst-defaults)))
        (:tz conformed-recex #{(t/zone "UTC")})))

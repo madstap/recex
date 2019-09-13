@@ -195,7 +195,21 @@
           #time/zoned-date-time "2019-01-05T00:01:15Z[UTC]"]
          (take 5 (rec/times
                   (yr 2019)
-                  [:saturday #{#time/time "00:00" {:s #{15 30 45}}}])))))
+                  [:saturday #{"00:00" {:s #{15 30 45}}}])))))
+
+(def weekdays
+  (set (map t/day-of-week (range 1 (inc 5)))))
+
+(def first-qtr
+  #{:january :february :march})
+
+(deftest ranges
+  (is (= (take 6 (rec/times (yr 2019) [weekdays]))
+         (take 6 (rec/times (yr 2019) [{:monday :friday}]))))
+  (is (= (take 4 (rec/times (yr 2019) [first-qtr 15]))
+         (take 4 (rec/times (yr 2019) [{:january :march} 15]))))
+  (is (= (take 10 (rec/times (yr 2019) [{1 15}]))
+         (take 10 (rec/times (yr 2019) [(set (range 1 (inc 15)))])))))
 
 (defn inc-hour [t]
   (t/+ t (t/new-duration 1 :hours)))
