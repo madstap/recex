@@ -7,15 +7,6 @@ express an infinite series of recurring times.
 
 Still figuring out the api, breaking changes are likely.
 
-## Usage
-
-I haven't deployed to clojars yet, but you can depend on the library with `deps.edn`.
-
-```clojure
-madstap/recex {:git/url "https://github.com/madstap/recex.git"
-               :sha "d350616647ba1274177673645f01b6d7cbf2d1bb"}
-```
-
 ## Rationale
 
 ### Domain specific languages
@@ -62,6 +53,15 @@ like cron and [schyntax](https://github.com/schyntax/schyntax), are
 not defined in terms of structured data.
 
 ## Usage
+
+### Dependency info
+
+I haven't deployed to clojars yet, but you can depend on the library with `deps.edn`.
+
+```clojure
+madstap/recex {:git/url "https://github.com/madstap/recex.git"
+               :sha "d350616647ba1274177673645f01b6d7cbf2d1bb"}
+```
 
 ### recex grammar
 
