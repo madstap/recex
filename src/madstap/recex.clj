@@ -128,7 +128,7 @@
 
 (defn expand-time-expr [t-expr]
   (let [{hours :h, minutes :m, seconds :s}
-        (->> (-> t-expr fill-lesser-units fill-greater-units)
+        (->> (-> t-expr fill-greater-units fill-lesser-units)
              (medley/map-vals normalize-set)
              (medley/map-vals expand-ranges))]
     (for [h hours, m minutes, s seconds]

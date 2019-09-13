@@ -185,7 +185,8 @@
          (rec/expand-times #{#time/time "00:00" {:m 2 :h {2 4}}})))
   (is (= (* 60 24) (count (rec/expand-times #{{:s 5}}))))
   (is (= (* 2 60 24) (count (rec/expand-times #{{:s #{0 30}}}))))
-  (is (= 24 (count (rec/expand-times #{{:m 5}})))))
+  (is (= 24 (count (rec/expand-times #{{:m 5}}))))
+  (is (= (* 3 120) (count (rec/expand-time-expr {:h {10 12} :s #{0 30}})))))
 
 (deftest time-exprs
   (is (= [#time/zoned-date-time "2019-01-05T00:00:00Z[UTC]"
