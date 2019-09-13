@@ -1,5 +1,4 @@
 {:deps {org.clojure/clojure {:mvn/version "1.10.1"}
-        org.clojure/core.async {:mvn/version "0.4.490"}
 
         tick {:git/url "https://github.com/juxt/tick.git"
               :sha "e777e93ca80c19bc2b9f4bea76d096f037afe510"}
