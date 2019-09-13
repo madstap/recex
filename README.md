@@ -253,9 +253,13 @@ twice.
 
 ```clojure
 [#{{:h {0 11} :m #{0 30}} "12:00"} "Europe/Oslo" {:dst/gap :skip}]
+```
 
-;; To avoid both repeating times and skipping them for schedules of this kind,
-;; you'll want to use the following dst opts.
+To avoid both repeating times (when there's a gap) and
+skipping them (when there's an overlap)
+for schedules of this kind, you'll want to use the following dst opts.
+
+```clojure
 [#{{:h {0 11} :m #{0 30}} "12:00"} "Europe/Oslo" {:dst/overlap :both
                                                   :dst/gap :skip}]
 ```
