@@ -106,9 +106,9 @@
   (is (= #time/zoned-date-time "2023-10-13T00:00Z[UTC]"
          (first (rec/times (yr 2019) [:october :friday 13])))))
 
-(deftest flatten-sets-test
-  (is (= #{0 1 2 3 4} (rec/flatten-sets #{0 #{1} #{2} #{#{3} #{#{4}}}})))
-  (is (= #{1} (rec/flatten-sets 1))))
+(deftest normalize-set-test
+  (is (= #{0 1 2 3 4} (rec/normalize-set #{0 #{1} #{2} #{#{3} #{#{4}}}})))
+  (is (= #{1} (rec/normalize-set 1))))
 
 (deftest filters
   (is (true?
@@ -179,6 +179,23 @@
            (take 2 (rec/times (yr 2019)
                               [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"
                                {:dst/gap :skip}]))))))
+
+(deftest expand-times-test
+  (is (= #{#time/time "00:00" #time/time "02:02" #time/time "03:02" #time/time "04:02"}
+         (rec/expand-times #{#time/time "00:00" {:m 2 :h {2 4}}})))
+  (is (= (* 60 24) (count (rec/expand-times #{{:s 5}}))))
+  (is (= (* 2 60 24) (count (rec/expand-times #{{:s #{0 30}}}))))
+  (is (= 24 (count (rec/expand-times #{{:m 5}})))))
+
+(deftest time-exprs
+  (is (= [#time/zoned-date-time "2019-01-05T00:00:00Z[UTC]"
+          #time/zoned-date-time "2019-01-05T00:00:15Z[UTC]"
+          #time/zoned-date-time "2019-01-05T00:00:30Z[UTC]"
+          #time/zoned-date-time "2019-01-05T00:00:45Z[UTC]"
+          #time/zoned-date-time "2019-01-05T00:01:15Z[UTC]"]
+         (take 5 (rec/times
+                  (yr 2019)
+                  [:saturday #{#time/time "00:00" {:s #{15 30 45}}}])))))
 
 (defn inc-hour [t]
   (t/+ t (t/new-duration 1 :hours)))

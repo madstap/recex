@@ -2,6 +2,7 @@
   (:require
    [cljc.java-time.instant :as instant]
    [cljc.java-time.local-date-time :as date-time]
+   [cljc.java-time.local-time :as time]
    [cljc.java-time.zone-id :as zone-id]
    [cljc.java-time.zoned-date-time :as zoned-date-time]
    [clojure.spec.alpha :as s]
@@ -45,13 +46,95 @@
         (string? x) (try (t/parse x) (catch Exception _ nil))
         :else nil))
 
+(defn normalize-set [x]
+  (if (set? x)
+    (into #{} (mapcat normalize-set) x)
+    #{x}))
+
+(defmacro nested-set-or-one-of [spec]
+  `(s/and (s/conformer normalize-set) (s/coll-of ~spec :kind set?)))
+
+(s/def ::h-int (s/int-in 0 24))
+(s/def ::m-int (s/int-in 0 60))
+(s/def ::s-int (s/int-in 0 60))
+
+(s/def ::h
+  (nested-set-or-one-of
+   (s/nonconforming
+    (s/or :range (s/map-of ::h-int ::h-int)
+          :int ::h-int))))
+
+(s/def ::m
+  (nested-set-or-one-of
+   (s/nonconforming
+    (s/or :range (s/map-of ::m-int ::m-int)
+          :int ::m-int))))
+
+(s/def ::s
+  (nested-set-or-one-of
+   (s/nonconforming
+    (s/or :range (s/map-of ::s-int ::s-int)
+          :int ::s-int))))
+
+(s/def ::time-expr
+  (s/keys :req-un [(or ::h ::m ::s)]))
+
+(def unit->n
+  {:h 24
+   :m 60
+   :s 60})
+
+(defn fill-lesser-units [t-expr]
+  (first
+   (reduce (fn [[exp fill?] unit]
+             (if (unit exp)
+               [exp true]
+               (if fill?
+                 [(assoc exp unit 0) true]
+                 [exp false])))
+           [t-expr false]
+           [:h :m :s])))
+
+(defn fill-greater-units [t-expr]
+  (first
+   (reduce (fn [[exp fill?] unit]
+             (if (unit exp)
+               [exp true]
+               (if fill?
+                 [(assoc exp unit (set (range (unit->n unit)))) true]
+                 [exp false])))
+           [t-expr false]
+           [:s :m :h])))
+
+(defn expand-range [rangee]
+  (reduce (fn [acc [start end]]
+            (into acc (range start (inc end))))
+          #{}
+          rangee))
+
+(defn expand-ranges [values]
+  (into #{} (mapcat #(if (map? %) (expand-range %) #{%})) values))
+
+(defn expand-time-expr [t-expr]
+  (let [{hours :h, minutes :m, seconds :s}
+        (->> (-> t-expr fill-lesser-units fill-greater-units)
+             (medley/map-vals normalize-set)
+             (medley/map-vals expand-ranges))]
+    (for [h hours, m minutes, s seconds]
+      (time/of h m s))))
+
+(defn expand-times [times]
+  (into #{} (mapcat #(if (ts/local-time? %) #{%} (expand-time-expr %))) times))
+
 (s/def ::time
-  (s/and (s/conformer parse-time) ts/local-time?))
+  (s/and
+   (s/or :time (s/and (s/conformer parse-time) ts/local-time?)
+         :time-expr ::time-expr)
+   (s/conformer second)))
 
 (defn parse-tz [x]
   (cond (ts/zone-id? x) x
-        (string? x) (try (t/zone x) (catch Exception _ nil))
-        :else nil))
+        (string? x) (try (t/zone x) (catch Exception _ nil))))
 
 (s/def ::tz
   (s/and (s/conformer parse-tz) ts/zone-id?))
@@ -77,14 +160,6 @@
                                        :dst/gap :madstap.recex.dst/gap})))
    (s/keys :opt [:madstap.recex.dst/overlap
                  :madstap.recex.dst/gap])))
-
-(defn flatten-sets [x]
-  (if (set? x)
-    (into #{} (mapcat flatten-sets) x)
-    #{x}))
-
-(defmacro nested-set-or-one-of [spec]
-  `(s/and (s/conformer flatten-sets) (s/coll-of ~spec :kind set?)))
 
 (s/def ::inner-recex
   (s/and vector?
@@ -217,6 +292,7 @@
 
 (defn inner-times [now {:keys [month day-of-week day-of-month time tz dst-opts]}]
   (let [zoned-now (t/in now tz)
+        all-times (expand-times time)
         date-pred
         (every-filter
          (apply any-filter (map month-filter month))
@@ -230,7 +306,7 @@
          (apply any-filter (map day-of-month-filter day-of-month)))]
 
     (sequence (comp (filter date-pred)
-                    (mapcat #(times-of-day % time tz dst-opts))
+                    (mapcat #(times-of-day % all-times tz dst-opts))
                     (drop-while #(t/< % zoned-now)))
               (iterate t/inc (t/date zoned-now)))))
 
