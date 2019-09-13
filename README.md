@@ -13,125 +13,142 @@ I haven't deployed to clojars yet, but you can depend on the library with `deps.
 
 ```clojure
 madstap/recex {:git/url "https://github.com/madstap/recex.git"
-               :sha "4133259c26620b8f13757ac2bb3f866230def462"}
+               :sha "d9ce4ae0438650bc56525495f7236f12bf6d1f89"}
 ```
 
 ## Rationale
 
-In the [chime readme](https://github.com/jarohen/chime#the-big-idea-behind-chime)
-the author writes about how it tries to be the simplest possible scheduler.
-It takes a sequence of times for executing a function, which makes it
-infinitely flexible, it's just clojure code. You will never hit a wall where
-it's very hard, or impossible, to express what you need.
+### Domain specific languages
 
-This works pretty well, but there are some tradeoffs.
+Dsls make a tradeoff between flexibility and leverage. With a general purpose
+language you can say anything, they're all turing complete, thus
+infinitely flexible. With a domain specific one however, you can say
+thing much more concisely, expressing yourself on the level of the
+domain, but you can only say things using the primitives the language
+creator thought of.
 
-In general, a dsl trades flexibility for leverage. You get to express
-yourself on the level of the domain instead of in terms of a general
-purpose programming language.
+Recex aims to be good at tersely expressing a series of recurring
+times, for things like scheduling, without having to write code. It
+can also serve as the starting point for generating a sequence of
+times that is then manipulated by code that does something recexes
+can't express.
 
-A more specific issue I've run into with using infinite sequences as
-schedules is that they are pretty unwieldy, they can trip up your
-editor if you try to print them. Modern clojure editors are smart
-about this and only print a certain number of elements, but even then
-10 or 100 elements at one key in a context map still really hurts
-readability when you pretty print it to debug something.
+### Infinite sequences
 
-Being code means that even if your scheduling needs are really simple,
-you still need to implement them. If you want a schedule to be
-configurable, you need to implement a function from data in a config
-file to a sequence of times. Sticking a schedule in a config file was
-the original use-case for this library.
+[Chime](https://github.com/jarohen/chime#the-big-idea-behind-chime) is
+a nice, simple scheduler for clojure. It takes a sequence of times and
+executes a funtion at those times. The docs shows you how to write the
+code to generate the sequences for some standard use-cases, but when
+using the library that way I ran into some issues.
 
-This is not to dunk on chime, it works great, and in fact you can
-pretty trivially use it with the sequence of times that this library
-gives you.  You just need to transform the times to joda-times.
-(This is lossy as it throws away zone/offset information.)
+The first one is that infinite sequences are unwieldy. Even though
+modern clojure environments limit the number of elemnts printed to
+less than infinity, printing a context map with a bunch of them still
+makes my emacs stutter. It also makes the printout pretty unreadable.
 
-```clojure
-(require '[clj-time.coerce :as ct.coerce])
+The second one is that you might want to make the schedule configurable.
+If I want a job to execute at 10:30 every day instead of at 9, that should
+ideally involve changing a config file, and not changing code.
 
-(defn zdt-or-odt->joda-time [zdt-or-odt]
-  (-> zdt-or-odt .toInstant java.util.Date/from ct.coerce/from-date))
+They do mention that you can use a dsl to generate the sequence that you
+feed into chime, which is exactly what I [recommend doing](#Chime) with recex.
+
+### Structured data
+
+Since this is clojure, we prefer our dsls to be defined in terms of data,
+instead of text. This makes it easy to write programs that generate the dsl,
+and it also makes it much easier to parse. Existing dsls in this domain,
+like cron and [schyntax](https://github.com/schyntax/schyntax), are
+not defined in terms of structured data.
+
+## Usage
+
+### recex grammar
+
+A recex a vector with slots:
+
+``` Clojure
+[month day-of-week day-of-month time time-zone dst-options]
 ```
-
-Since we are using clojure, we prefer a dsl defined in
-terms of data instead of one defined in terms of text. While using
-just the dsl gives you quite a bit, you might want to also write code
-that generates a recex.
-
-Readability is helped by using tagged literals (by default the ones
-bundled with [tick](https://juxt.pro/tick/docs/index.html)
-([time-literals](https://github.com/henryw374/time-literals)), but that
-is [configurable](https://juxt.pro/tick/docs/index.html#_serialization)).
-This hopefully makes it pretty obvious what is happening, even if you
-don't know the dsl well.
-
-
-## recex grammar
-
-A recex a vector with slots: `[month day-of-week day-of-month time time-zone]`.
 
 The different slots are `AND`ed together, while sets in a single slot means `OR`.
 
+(Except for the daylight saving time (dst) options, which is explained further down.)
+
+Some examples are worth a thousand words:
+
 ```clojure
 ;; Each day at 6 in the afternoon.
-[#time/time "18:00"]
+["18:00"]
 
-;; When not specified, the time zone defaults to UTC. The above is the same as:
-[#time/time "18:00" #time/zone "UTC"]
-
-;; When not specified, the time defaults to midnight. These are all the same:
+;; When not specified, the time defaults to midnight and time zone defaults to UTC.
+;; These are all the same:
 []
-[#time/time "00:00"]
-[#time/time "00:00" #time/zone "UTC"]
-[#time/zone "UTC"]
+["00:00"]
+["00:00" "UTC"]
+["UTC"]
+
+;; 9 and 17 every day in Oslo time
+[#{"09:00" "17:00"} "Europe/Oslo"]
+
+;; Noon in both Oslo and São Paulo time
+["12:00" #{"Europe/Oslo" "America/Sao_Paulo"}]
+
+;; Mondays and fridays at 2 in the afternoon in LA
+[#{:monday :friday} "14:00" "America/Los_Angeles"]
+
+;; Every february 29th (every 4 years)
+[:february 29]
+
+;; Midnight every friday the 13th
+[:friday 13 "00:00"]
+
+;; Every friday the 13th in august.
+[:august :friday 13]
 ```
 
-Multiple times can be specified with a set. This also goes for all the other slots.
+Days of the month can be negative, counting backwards from the end.
 
 ```clojure
-[#{#time/time "09:00"
-   #time/time "17:00"} #time/zone "Europe/Oslo"]
+;; The last day in february
+[:february -1]
 ```
 
-Multiple recexes can themselves be combined by using a set.
-
-```clojure
-#{[#time/time "12:00" #time/zone "Europe/Oslo"]
-  [#time/time "14:00" #time/zone "America/Sao_Paulo"]}
-```
-
-Month and day of week are java time types, while day of month is an integer.
-Days of week can also be specified to be the nth day-of-week in that month,
-by using a vector of `[nth day]` instead of just day.
-
-Both nth day of week and day of month can be negative numbers, in which
-`[-1 #time/day-of-week "FRIDAY"]` means the last friday of the month,
-and `-1` means the last day of the month.
-
-Some examples will hopefully make this clearer:
+A day of the week can be specified to be the nth day of the week in that month.
 
 ```clojure
 ;; https://en.wikipedia.org/wiki/Triple_witching_hour
 ;; 15:00 New York time every third friday in March, June, September and December.
-[#{#time/month "MARCH"     #time/month "JUNE"
-   #time/month "SEPTEMBER" #time/month "DECEMBER"}
- [3 #time/day-of-week "FRIDAY"]
- #time/time "15:00"
- #time/zone "America/New_York"]
+[#{:march :june :september :december} [3 :friday] "15:00" "America/New_York"]
 
-;; Midnight every friday the 13th
-[#time/day-of-week "FRIDAY" 13 #time/time "00:00"]
+;; Like day of month, they can also be negative.
 
-;; The last monday of each month at noon.
-[[-1 #time/day-of-week "MONDAY"] #time/time "12:00"]
-
-;; The second to last day of each month that is also a monday, at noon.
-[#time/day-of-week "MONDAY" -2 #time/time "12:00"]
+;; The last monday in june.
+[:june [-1 :monday]]
 ```
 
-## Clojure API
+Months, days of the week and days in months can be specified using ranges.
+A range is a map of `{start end}` (inclusive).
+
+```clojure
+;; Noon on weekdays in Finland.
+[{:monday :friday} "12:00" "Europe/Helsinki"]
+
+;; Noon every day from the 10th to the 15th from October through March and also June
+[#{{:october :march} :june} {10 15} "12:00"]
+```
+
+Multiple recexes can be combined by using a set.
+
+```clojure
+;; Noon in Oslo time and 10 in São Paulo
+#{["12:00" "Europe/Oslo"]
+  ["10:00" "America/Sao_Paulo"]}
+```
+
+TODO: Time expressions.
+
+### Clojure API
 
 Require the namespace:
 
@@ -156,16 +173,31 @@ Omitting the `now` argument makes the function impure, and thus trickier to test
 (Remember to `take` when experimenting at the repl, it is an infinite sequence.)
 
 ```Clojure
-(take 2 (recex/times (t/now) [#time/time "00:00"]))
+(take 2 (recex/times (t/now) ["00:00"]))
 ;; => (#time/zoned-date-time "2019-09-06T00:00Z[UTC]"
 ;;     #time/zoned-date-time "2019-09-07T00:00Z[UTC]")
 
-(take 2 (recex/times [#time/time "00:00"]))
+(take 2 (recex/times ["00:00"]))
 ;; => (#time/zoned-date-time "2019-09-06T00:00Z[UTC]"
 ;;     #time/zoned-date-time "2019-09-07T00:00Z[UTC]")
 ```
 
+### Chime
 
+To use recex together with chime it's necessary to translate
+`java.time.ZonedDateTime`s to joda time, because chime was written
+before java.time was a thing.
+
+(Add [clj-time](https://github.com/clj-time/clj-time) as a dependency.)
+
+```clojure
+(require '[clj-time.coerce :as ct.coerce])
+
+(defn zdt->joda-time [zdt]
+  (-> zdt .toInstant java.util.Date/from ct.coerce/from-date))
+```
+
+(Maybe someone could port chime to java.time)
 
 ## Caveats/warnings
 
@@ -180,25 +212,13 @@ this is not checked. For example:
 ```
 
 This is an impossible combination, and the current behavior is an infinite loop.
-So don't accept user defined recexes in api endpoints without at least a timeout,
-lest you open yourself up to denial of service attacks.
+If you accept recexes from untrusted sources,
+you're gonna have a bad time (denial of service attacks).
+
+You could probably mitigate this with a timeout.
 
 Doing some math to validate whether a recex is impossible should be doable,
 but may be non-trivial. PRs welcome.
-
-### Unexpressable concepts
-
-Currently the dsl specifies things like "every last monday of the
-month at noon in some time zone" and not things like "every 5 minutes
-for an hour every friday in the system time zone", which is easy to
-specify in cron. Stuff like "every x time units starting at y" is not
-necessarily out of scope, I just haven't found a good syntax for it,
-nor have I personally had that use case yet. Suggestions are very welcome.
-
-As an aside, even without a way to express those things, I think it
-would still be possible to write a `cron->recex` function and just
-expand repetitions into a bunch of time objects.
-
 
 ## Prior art
 
@@ -208,17 +228,14 @@ cron is the de-facto standard time dsl. It is text-based, and not very
 readable (YMMV). Time zones are not part of the expression itself, it
 uses the system time zone or you can choose the time zone with config files
 or env vars, which is quite fiddly.
-However, like discussed above it can express repeating times of the
-form "every x minutes" which is not expressable without repetition in
-recexes.
 
 ### [schyntax](https://github.com/schyntax/schyntax)
 
 A time dsl with implementations in js, .NET and go. It has pretty
 similar features to recex, but also easily expresses "every n minutes"
 type repetitions and has negations, which I'd be interested to add to
-recexes.  It works only in UTC, however, which makes it impossible to
-express things like every day at noon in some time zone with dst.
+recexes.  It works only in UTC, however, which makes it hard or impossible to
+express things involving time zones with dst.
 
 ### [iCalendar recurrence rules](https://www.kanzaki.com/docs/ical/rrule.html)
 
