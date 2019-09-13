@@ -13,7 +13,7 @@ I haven't deployed to clojars yet, but you can depend on the library with `deps.
 
 ```clojure
 madstap/recex {:git/url "https://github.com/madstap/recex.git"
-               :sha "d9ce4ae0438650bc56525495f7236f12bf6d1f89"}
+               :sha "d350616647ba1274177673645f01b6d7cbf2d1bb"}
 ```
 
 ## Rationale
@@ -65,7 +65,7 @@ not defined in terms of structured data.
 
 ### recex grammar
 
-A recex a vector with slots:
+A recex is a vector with slots:
 
 ``` Clojure
 [month day-of-week day-of-month time time-zone dst-options]
@@ -146,7 +146,119 @@ Multiple recexes can be combined by using a set.
   ["10:00" "America/Sao_Paulo"]}
 ```
 
-TODO: Time expressions.
+### Time expressions
+
+For more granular control, and less repetition, times can be
+substituted with time expressions. They are maps with one or more of
+`:h`, `:m` and `:s` keys, which mean hour, minute and second.
+
+Each can be either an integer, a set of integers or a range.
+
+When a smaller unit is set, the larger ones not set are considered the set
+of all possible values and when a larger one is set,
+the smaller ones not set are considered 0. If a unit in the middle is not set,
+then it is also considered the set of all possible values.
+
+This is awkward to explain with words, but (hopefully) intuitive.
+Examples might help:
+
+```clojure
+;; Equivalent ways to say 10:30 and 12:30
+[{:h #{10 12} :m 30}]
+[{:h #{10 12} :m 30 :s 0}]
+[#{"10:30" "12:30"}]
+
+;; Equivalent ways to say every half hour
+[{:m #{0 30}]
+[{:h {0 23} :m #{0 30}}]
+
+;; Every half a minute from 10 to 12
+[{:h {10 12} :s #{0 30}}]
+```
+
+### Daylight saving time
+
+Daylight saving time is a terrible thing, I'm sure we can all agree,
+but we need to handle those edge cases.
+
+Unless you live in Iceland. If you write software only for use in Iceland
+you can ignore this section, you lucky bastard.
+
+Recex doesn't try to be smart and guess at how you want to handle them,
+because there are valid reasons to choose different approaches,
+depending on what you're doing.
+
+There are two different edge cases when talking about dst. An overlap
+is when the clocks are turned back, which means there is a period of
+time, usually an hour, that repeats, but in different offsets. A gap
+is when the clocks are turned forwards and there's (usually) an hour
+that doesn't occur.
+
+#### Overlap
+
+There are three options for handling an overlap: `:first`, `:second` or `:both`.
+The default is `:first`.
+
+On the 1st of november in 2015, America/Los_Angeles turned the clocks
+back so the hour between 01:00 and 02:00 repeated, the first one in
+offset -07:00 and the second in -08:00.
+
+If you want a batch job to run every night at 01:30, you're probably
+best off using the default, `:first`. This means that it happens only
+once, in offset -07:00.
+
+```clojure
+;; These are the same:
+["01:30" "America/Los_Angeles"]
+["01:30" "America/Los_Angeles" {:dst/overlap :first}]
+```
+
+If you need an alarm clock to wake up for your night shift, however,
+you probably want `:second`, to take advantage of that extra hour of sleep.
+It'll ring once, in offset -08:00.
+
+```clojure
+["01:30" "America/Los_Angeles" {:dst/overlap :second}]
+```
+
+And if you need something to run every half hour from midnight to
+noon, and don't want there to be any gaps, you want `:both`. It'll run
+two times more that day than usual, but it'll follow the requirements exactly.
+
+```clojure
+;; Every half hour from midnight to noon (inclusive)
+[#{{:h {0 11} :m #{0 30}} "12:00"} "America/Los_Angeles" {:dst/overlap :both}]
+```
+
+#### Gap
+
+Gaps have two options `:skip` and `:include`. The default is `:include`.
+
+On the 31st of march 2019, Norway turned the clocks forward. The hour
+from 02:00 to 03:00 was skipped.
+
+If you have a batch job running at 02:30 each night, you want the default: `:include`.
+It'll run at 03:30 instead that night.
+
+```clojure
+;; These are the same:
+["02:30" "Europe/Oslo"]
+["02:30" "Europe/Oslo" {:dst/gap :include}]
+```
+
+Continuing with the example from above, if you're running something
+every half hour from midnight to noon, you'll want `:skip`. If you
+didn't specify `:skip` you'd get every time between 02:00 and 03:00
+twice.
+
+```clojure
+[#{{:h {0 11} :m #{0 30}} "12:00"} "Europe/Oslo" {:dst/gap :skip}]
+
+;; To avoid both repeating times and skipping them for schedules of this kind,
+;; you'll want to use the following dst opts.
+[#{{:h {0 11} :m #{0 30}} "12:00"} "Europe/Oslo" {:dst/overlap :both
+                                                  :dst/gap :skip}]
+```
 
 ### Clojure API
 
@@ -183,7 +295,7 @@ To use recex together with chime it's necessary to translate
 `java.time.ZonedDateTime`s to joda time, because chime was written
 before java.time was a thing.
 
-(Add [clj-time](https://github.com/clj-time/clj-time) as a dependency.)
+(Needs [clj-time](https://github.com/clj-time/clj-time) as a dependency.)
 
 ```clojure
 (require '[clj-time.coerce :as ct.coerce])
