@@ -120,10 +120,8 @@
            [:s :m :h])))
 
 (defn expand-range [rangee]
-  (reduce (fn [acc [start end]]
-            (into acc (range start (inc end))))
-          #{}
-          rangee))
+  (into #{} (mapcat (fn [[start end]]
+                      (range start (inc end)))) rangee))
 
 (defn expand-ranges [values]
   (into #{} (mapcat #(if (map? %) (expand-range %) #{%})) values))
