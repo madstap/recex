@@ -159,12 +159,11 @@ Require the namespace:
    [tick.alpha.api :as t]))
 ```
 
-The `recex/time` function generates an infinite sequence of times from a recex.
-The times are either zoned-date-time or offset-date-time depending on whether a
-time zone or an offset was specified.
+The `recex/time` function generates an infinite sequence of
+`java.time.ZonedDatetime`s from a recex.
 
-It takes a time `now` which can be either an instant, zoned-date-time
-or offset-date-time, (ie anything that represents an instant in time) and a recex.
+It takes a recex and a time `now` which can be either an instant, zoned-date-time
+or offset-date-time, (ie anything that represents a point on the global timeline).
 
 `now` can be omitted, in which case it will use `t/now`, but it's
 not recommended to use the implicit now except for experimenting at the repl.
@@ -173,13 +172,9 @@ Omitting the `now` argument makes the function impure, and thus trickier to test
 (Remember to `take` when experimenting at the repl, it is an infinite sequence.)
 
 ```Clojure
-(take 2 (recex/times (t/now) ["00:00"]))
-;; => (#time/zoned-date-time "2019-09-06T00:00Z[UTC]"
-;;     #time/zoned-date-time "2019-09-07T00:00Z[UTC]")
+(take 2 (recex/times ["00:00"] (t/zoned-date-time "2019-09-06T00:00Z[UTC]")))
 
-(take 2 (recex/times ["00:00"]))
-;; => (#time/zoned-date-time "2019-09-06T00:00Z[UTC]"
-;;     #time/zoned-date-time "2019-09-07T00:00Z[UTC]")
+(take 2 (recex/times ["00:00"])) ; Implicit `(t/now)`.
 ```
 
 ### Chime

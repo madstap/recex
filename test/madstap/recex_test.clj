@@ -12,52 +12,51 @@
   (is (= [#time/zoned-date-time "2019-09-04T00:00Z[UTC]"
           #time/zoned-date-time "2019-09-05T00:00Z[UTC]"
           #time/zoned-date-time "2019-09-06T00:00Z[UTC]"]
-         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
-                            [])))))
+         (take 3 (rec/times [] #time/instant "2019-09-03T22:00:00Z")))))
 
 (deftest simple-times-of-day-test
   (is (= [#time/zoned-date-time "2019-09-04T01:30+01:00"
           #time/zoned-date-time "2019-09-05T01:30+01:00"
           #time/zoned-date-time "2019-09-06T01:30+01:00"]
-         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
-                            [#time/time "01:30" #time/zone "+01:00"]))))
+         (take 3 (rec/times [#time/time "01:30" #time/zone "+01:00"]
+                            #time/instant "2019-09-03T22:00:00Z"))))
 
   (is (= [#time/zoned-date-time "2019-09-04T01:30-03:00[America/Sao_Paulo]"
           #time/zoned-date-time "2019-09-05T01:30-03:00[America/Sao_Paulo]"
           #time/zoned-date-time "2019-09-06T01:30-03:00[America/Sao_Paulo]"]
-         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
-                            [#time/time "01:30" #time/zone "America/Sao_Paulo"]))))
+         (take 3 (rec/times [#time/time "01:30" #time/zone "America/Sao_Paulo"]
+                            #time/instant "2019-09-03T22:00:00Z"))))
 
   (is (= #time/zoned-date-time "2019-09-05T01:00+02:00[Europe/Oslo]"
          (first (rec/times
+                 [#time/time "01:00" #time/zone "Europe/Oslo"]
                  ;; The same instant as:
                  ;; #time/zoned-date-time "2019-09-04T03:00+02:00[Europe/Oslo]"
-                 #time/instant "2019-09-04T01:00:00Z"
-                 [#time/time "01:00" #time/zone "Europe/Oslo"]))))
+                 #time/instant "2019-09-04T01:00:00Z"))))
 
   (is (= [#time/zoned-date-time "2019-09-04T01:30-03:00[America/Sao_Paulo]"
           #time/zoned-date-time "2019-09-04T02:30-03:00[America/Sao_Paulo]"
           #time/zoned-date-time "2019-09-05T01:30-03:00[America/Sao_Paulo]"]
-         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
-                            [#{#time/time "01:30"
+         (take 3 (rec/times [#{#time/time "01:30"
                                #time/time "02:30"}
-                             #time/zone "America/Sao_Paulo"])))))
+                             #time/zone "America/Sao_Paulo"]
+                            #time/instant "2019-09-03T22:00:00Z")))))
 
 (deftest multiple-time-zones
   (is (= [#time/zoned-date-time "2019-09-04T12:00+02:00[Europe/Oslo]"
           #time/zoned-date-time "2019-09-04T12:00-03:00[America/Sao_Paulo]"
           #time/zoned-date-time "2019-09-05T12:00+02:00[Europe/Oslo]"]
-         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
-                            [#time/time "12:00" #{#time/zone "Europe/Oslo"
-                                                  #time/zone "America/Sao_Paulo"}])))))
+         (take 3 (rec/times [#time/time "12:00" #{#time/zone "Europe/Oslo"
+                                                  #time/zone "America/Sao_Paulo"}]
+                            #time/instant "2019-09-03T22:00:00Z")))))
 
 (deftest combining-recexes
   (is (= [#time/zoned-date-time "2019-09-04T12:00+02:00[Europe/Oslo]"
           #time/zoned-date-time "2019-09-04T14:00-03:00[America/Sao_Paulo]"
           #time/zoned-date-time "2019-09-05T12:00+02:00[Europe/Oslo]"]
-         (take 3 (rec/times #time/instant "2019-09-03T22:00:00Z"
-                            #{[#time/time "12:00" #time/zone "Europe/Oslo"]
-                              [#time/time "14:00" #time/zone "America/Sao_Paulo"]})))))
+         (take 3 (rec/times #{[#time/time "12:00" #time/zone "Europe/Oslo"]
+                              [#time/time "14:00" #time/zone "America/Sao_Paulo"]}
+                            #time/instant "2019-09-03T22:00:00Z")))))
 
 (deftest friday-13th
   (is (= [#time/zoned-date-time "2019-09-13T00:00Z[UTC]"
@@ -65,21 +64,22 @@
           #time/zoned-date-time "2020-03-13T00:00Z[UTC]"
           #time/zoned-date-time "2020-11-13T00:00Z[UTC]"]
          (take 4
-               (rec/times #time/instant "2019-01-01T00:00:00Z"
-                          [#time/day-of-week "FRIDAY"
+               (rec/times [#time/day-of-week "FRIDAY"
                            13
-                           #time/time "00:00"])))))
+                           #time/time "00:00"]
+                          #time/instant "2019-01-01T00:00:00Z")))))
 
 (deftest negative-days-of-week-and-month
   (is (= [#time/zoned-date-time "2019-09-30T12:00Z[UTC]"
           #time/zoned-date-time "2019-10-28T12:00Z[UTC]"]
          (take 2 (rec/times
-                  #time/instant "2019-09-03T22:00:00Z"
-                  [[-1 #time/day-of-week "MONDAY"] #time/time "12:00"]))))
+                  [[-1 #time/day-of-week "MONDAY"] #time/time "12:00"]
+                  #time/instant "2019-09-03T22:00:00Z"))))
 
   (is (= [#time/zoned-date-time "2019-12-30T12:00Z[UTC]"
           #time/zoned-date-time "2020-03-30T12:00Z[UTC]"]
-         (take 2 (rec/times [#time/day-of-week "MONDAY" -2 #time/time "12:00"])))))
+         (take 2 (rec/times [#time/day-of-week "MONDAY" -2 #time/time "12:00"]
+                            #time/instant "2019-09-03T22:00:00Z")))))
 
 (deftest triple-witching-days
   (is (= [#time/zoned-date-time "2019-03-15T15:00-04:00[America/New_York]"
@@ -88,23 +88,23 @@
           #time/zoned-date-time "2019-12-20T15:00-05:00[America/New_York]"]
          (take 4
                (rec/times
-                #time/zoned-date-time "2019-01-01T00:00-05:00[America/New_York]"
                 [#{#time/month "MARCH"     #time/month "JUNE"
                    #time/month "SEPTEMBER" #time/month "DECEMBER"}
                  [3 #time/day-of-week "FRIDAY"]
                  #time/time "15:00"
-                 #time/zone "America/New_York"])))))
+                 #time/zone "America/New_York"]
+                #time/zoned-date-time "2019-01-01T00:00-05:00[America/New_York]")))))
 
 (deftest terse-syntax
   (is (= [#time/zoned-date-time "2019-09-13T00:00+03:00[Europe/Helsinki]"
           #time/zoned-date-time "2019-12-13T00:00+02:00[Europe/Helsinki]"]
-         (take 2 (rec/times (yr 2019)
-                            [#{:september :december}
+         (take 2 (rec/times [#{:september :december}
                              :friday 13
                              "00:00"
-                             "Europe/Helsinki"]))))
+                             "Europe/Helsinki"]
+                            (yr 2019)))))
   (is (= #time/zoned-date-time "2023-10-13T00:00Z[UTC]"
-         (first (rec/times (yr 2019) [:october :friday 13])))))
+         (first (rec/times [:october :friday 13] (yr 2019))))))
 
 (deftest normalize-set-test
   (is (= #{0 1 2 3 4} (rec/normalize-set #{0 #{1} #{2} #{#{3} #{#{4}}}})))
@@ -146,39 +146,44 @@
   (testing "Overlap"
     (is (= [#time/zoned-date-time "2015-11-01T01:30-07:00[America/Los_Angeles]"
             #time/zoned-date-time "2016-11-01T01:30-07:00[America/Los_Angeles]"]
-           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"]))
-           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"
-                                         {:dst/overlap :first}]))))
+           (take 2 (rec/times [:nov 1 "01:30" "America/Los_Angeles"] (yr 2015)))
+           (take 2 (rec/times [:nov 1 "01:30" "America/Los_Angeles"
+                               {:dst/overlap :first}]
+                              (yr 2015)))))
 
     (is (= [(zoned-date-time/with-earlier-offset-at-overlap
               #time/zoned-date-time "2015-11-01T01:30-07:00[America/Los_Angeles]")
             (zoned-date-time/with-later-offset-at-overlap
               #time/zoned-date-time "2015-11-01T01:30-08:00[America/Los_Angeles]")]
-           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"
-                                         {:dst/overlap :both}]))))
+           (take 2 (rec/times [:nov 1 "01:30" "America/Los_Angeles"
+                               {:dst/overlap :both}]
+                              (yr 2015)))))
 
     (is (= [(zoned-date-time/with-later-offset-at-overlap
               #time/zoned-date-time "2015-11-01T01:30-08:00[America/Los_Angeles]")
             #time/zoned-date-time "2016-11-01T01:30-07:00[America/Los_Angeles]"]
-           (take 2 (rec/times (yr 2015) [:nov 1 "01:30" "America/Los_Angeles"
-                                         {:dst/overlap :second}])))))
+           (take 2 (rec/times [:nov 1 "01:30" "America/Los_Angeles"
+                               {:dst/overlap :second}]
+                              (yr 2015))))))
 
   (testing "Gap"
     (is (= [#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
             #time/zoned-date-time "2020-03-31T02:30+02:00[Europe/Oslo]"]
-           (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"]))
-           (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"
-                                         {:dst/gap :include}]))))
+           (take 2 (rec/times [:mar 31 "02:30" "Europe/Oslo"] (yr 2019)))
+           (take 2 (rec/times [:mar 31 "02:30" "Europe/Oslo"
+                               {:dst/gap :include}]
+                              (yr 2019)))))
 
     (is (= (repeat 2 #time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]")
-           (take 2 (rec/times (yr 2019) [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"
-                                         {:dst/gap :include}]))))
+           (take 2 (rec/times [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"
+                               {:dst/gap :include}]
+                              (yr 2019)))))
 
     (is (= [#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
             #time/zoned-date-time "2020-03-31T02:30+02:00[Europe/Oslo]"]
-           (take 2 (rec/times (yr 2019)
-                              [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"
-                               {:dst/gap :skip}]))))))
+           (take 2 (rec/times [:mar 31 #{"02:30" "03:30"} "Europe/Oslo"
+                               {:dst/gap :skip}]
+                              (yr 2019)))))))
 
 (deftest expand-times-test
   (is (= #{#time/time "00:00" #time/time "02:02" #time/time "03:02" #time/time "04:02"}
@@ -195,8 +200,8 @@
           #time/zoned-date-time "2019-01-05T00:00:45Z[UTC]"
           #time/zoned-date-time "2019-01-05T00:01:15Z[UTC]"]
          (take 5 (rec/times
-                  (yr 2019)
-                  [:saturday #{"00:00" {:s #{15 30 45}}}])))))
+                  [:saturday #{"00:00" {:s #{15 30 45}}}]
+                  (yr 2019))))))
 
 (def weekdays
   (set (map t/day-of-week (range 1 (inc 5)))))
@@ -205,12 +210,12 @@
   #{:january :february :march})
 
 (deftest ranges
-  (is (= (take 6 (rec/times (yr 2019) [weekdays]))
-         (take 6 (rec/times (yr 2019) [{:monday :friday}]))))
-  (is (= (take 4 (rec/times (yr 2019) [first-qtr 15]))
-         (take 4 (rec/times (yr 2019) [{:january :march} 15]))))
-  (is (= (take 10 (rec/times (yr 2019) [{1 15}]))
-         (take 10 (rec/times (yr 2019) [(set (range 1 (inc 15)))])))))
+  (is (= (take 6 (rec/times [weekdays] (yr 2019)))
+         (take 6 (rec/times [{:monday :friday}] (yr 2019)))))
+  (is (= (take 4 (rec/times [first-qtr 15] (yr 2019)))
+         (take 4 (rec/times [{:january :march} 15] (yr 2019)))))
+  (is (= (take 10 (rec/times [{1 15}] (yr 2019)))
+         (take 10 (rec/times [(set (range 1 (inc 15)))] (yr 2019))))))
 
 (defn inc-hour [t]
   (t/+ t (t/new-duration 1 :hours)))
@@ -256,7 +261,7 @@
 
   ;; With the current behavior it happens, but at 03:30.
   ;; If you're scheduling something once a day, that's probably what you'd want.
-  (take 2 (rec/times (yr 2019) [:mar 31 "02:30" "Europe/Oslo"]))
+  (take 2 (rec/times [:mar 31 "02:30" "Europe/Oslo"] (yr 2019)))
   ;; =>
   ;; (#time/zoned-date-time "2019-03-31T03:30+02:00[Europe/Oslo]"
   ;;  #time/zoned-date-time "2020-03-31T03:30+02:00[Europe/Oslo]")
@@ -283,4 +288,6 @@
 
   ;; The namespace dst should just be a shorthand for :madstap.recex/dst
   ;; so the spec doesn't conflict with any user defined ones.
+
+  (run-tests)
   )

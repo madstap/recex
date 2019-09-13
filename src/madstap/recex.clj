@@ -356,8 +356,8 @@
 
 (defn times
   ([recex]
-   (times (t/now) recex))
-  ([now recex]
+   (times recex (t/now)))
+  ([recex now]
    (->> (normalize recex)
         (map #(inner-times (t/instant now) %))
         (apply interleave-time-seqs))))
