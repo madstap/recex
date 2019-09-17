@@ -1,7 +1,8 @@
 {:deps {org.clojure/clojure {:mvn/version "1.10.1"}
 
-        tick {:git/url "https://github.com/juxt/tick.git"
-              :sha "e777e93ca80c19bc2b9f4bea76d096f037afe510"}
+        ;; tick {:git/url "https://github.com/juxt/tick.git"
+        ;;       :sha "e777e93ca80c19bc2b9f4bea76d096f037afe510"}
+        tick {:mvn/version "0.4.19-alpha"}
         time-specs {:mvn/version "0.1.0-SNAPSHOT"}
 
         medley {:mvn/version "1.1.0"}}
@@ -9,4 +10,13 @@
  :aliases
  {:test
   {:extra-paths ["test"]
-   :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-529"}}}}}
+   :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-529"}}}
+
+  :jar
+  {:extra-deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git"
+                                 :sha "2769a6224bfb938e777906ea311b3daf7d2220f5"}}
+   :main-opts ["-m" "mach.pack.alpha.skinny" "--no-libs" "--project-path" "recex.jar"]}
+
+  :deploy
+  {:extra-deps {deps-deploy {:mvn/version "0.0.9"}}
+   :main-opts ["-m" "deps-deploy.deps-deploy" "deploy" "recex.jar"]}}}
