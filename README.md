@@ -275,7 +275,7 @@ Require the namespace:
    [tick.alpha.api :as t]))
 ```
 
-The `recex/time` function generates an infinite sequence of
+The `recex/times` function generates an infinite sequence of
 `java.time.ZonedDatetime`s from a recex.
 
 It takes a recex and a time `now` which can be either an instant, zoned-date-time
@@ -319,7 +319,7 @@ this is not checked. For example:
 
 ```clojure
 ;; The last friday of the month that is also the 1st day of the month.
-[[-1 #time/day-of-week "FRIDAY"] 1 #time/time "12:00"]
+[[-1 :friday] 1 "12:00"]
 ```
 
 This is an impossible combination, and the current behavior is an infinite loop.
