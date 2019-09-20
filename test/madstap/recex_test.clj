@@ -1,7 +1,9 @@
 (ns madstap.recex-test
   (:require
-   [clojure.test :refer [deftest testing is are run-tests test-var]]
    [cljc.java-time.zoned-date-time :as zoned-date-time]
+   [clojure.spec.alpha :as s]
+   [clojure.spec.gen.alpha :as gen]
+   [clojure.test :refer [deftest testing is are run-tests test-var]]
    [tick.core :as t]
    [madstap.recex :as rec]))
 
@@ -216,3 +218,15 @@
          (take 4 (rec/times [{:january :march} 15] (yr 2019)))))
   (is (= (take 10 (rec/times [{1 15}] (yr 2019)))
          (take 10 (rec/times [(set (range 1 (inc 15)))] (yr 2019))))))
+
+(def g (comp gen/generate s/gen))
+
+(deftest generators
+  (is (g ::rec/time))
+  (is (g ::rec/month))
+  (is (g ::rec/day-of-week))
+  (is (g ::rec/day-of-month))
+  (is (g ::rec/time-expr))
+  (is (g ::rec/tz))
+  (is (g ::rec/dst-opts))
+  (is (g ::rec/recex)))

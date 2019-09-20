@@ -1,12 +1,16 @@
 (ns madstap.recex
   (:require
+   [cljc.java-time.day-of-week :as day-of-week]
+   [cljc.java-time.instant :as instant]
    [cljc.java-time.instant :as instant]
    [cljc.java-time.local-date-time :as date-time]
    [cljc.java-time.local-time :as time]
+   [cljc.java-time.month :as month]
    [cljc.java-time.zone-id :as zone-id]
    [cljc.java-time.zoned-date-time :as zoned-date-time]
-   [clojure.spec.alpha :as s]
    [clojure.set :as set]
+   [clojure.spec.alpha :as s]
+   [clojure.spec.gen.alpha :as gen]
    [medley.core :as medley]
    [tick.core :as t]
    [time-specs.core :as ts])
@@ -15,34 +19,74 @@
 (defn str* [x]
   (if (ident? x) (name x) (str x)))
 
- (def parse-month
+(def parse-month
   (comp t/parse-month str*))
 
+(defn month-gen []
+  (s/gen (set (map month/of (range 1 (inc 12))))))
+
+(defn day-of-week-gen []
+  (s/gen (set (map day-of-week/of (range 1 (inc 7))))))
+
+(defn time-gen []
+  (gen/fmap (fn [[h m s ns]]
+              (time/of h m s ns))
+            (gen/tuple (s/gen (s/int-in 0 24))
+                       (s/gen (s/int-in 0 60))
+                       (s/gen (s/int-in 0 60))
+                       (s/gen (s/int-in 0 1000000000)))))
+
+(defn zone-id-gen []
+  (s/gen (into #{} (map zone-id/of) (zone-id/get-available-zone-ids))))
+
+(defn instant-gen []
+  (gen/fmap #(instant/of-epoch-milli (.getTime %)) (s/gen inst?)))
+
+(defmacro range-of [spec]
+  `(let [s# ~spec]
+     (s/map-of s# s# :min-count 1 :gen-max 1 :conform-keys true)))
+
+(defmacro range-or-one-of [spec]
+  `(let [s# ~spec]
+     (s/and (s/or :one s# :range (range-of s#))
+            (s/conformer second))))
+
 (s/def ::month*
-  (s/and (s/conformer parse-month) ts/month?))
+  (s/with-gen (s/and (s/conformer parse-month) ts/month?)
+    month-gen))
 
 (s/def ::month
-  (s/and (s/or :range (s/coll-of (s/tuple ::month* ::month*))
-               :one ::month*)
-         (s/conformer second)))
+  (range-or-one-of ::month*))
 
 (def parse-dow
   (comp t/parse-day str*))
 
 (s/def ::dow
-  (s/and (s/conformer parse-dow) ts/day-of-week?))
+  (s/with-gen (s/and (s/conformer parse-dow) ts/day-of-week?)
+    day-of-week-gen))
+
+(s/def ::pos-nth-day-of-week
+  (s/int-in 1 (inc 5)))
+
+(s/def ::neg-nth-day-of-week
+  (s/int-in -5 (inc -1)))
+
+(s/def ::simple-day-of-week
+  (range-or-one-of ::dow))
+
+(s/def ::nth-day-of-week
+  (s/with-gen (s/and vector?
+                     (s/cat :n (s/nonconforming
+                                (s/or :pos ::pos-nth-day-of-week
+                                      :neg ::neg-nth-day-of-week))
+                            :day ::dow))
+    #(gen/tuple (gen/one-of (map s/gen [::pos-nth-day-of-week
+                                        ::neg-nth-day-of-week]))
+                (s/gen ::dow))))
 
 (s/def ::day-of-week
-  (s/or :day-of-week
-        (s/and (s/or :dow ::dow
-                     :range (s/coll-of (s/tuple ::dow ::dow)))
-               (s/conformer second))
-        :nth-day-of-week
-        (s/and vector?
-               (s/cat :n (s/nonconforming
-                          (s/or :pos (s/int-in 1 (inc 5))
-                                :neg (s/int-in -5 (inc -1))))
-                      :day ::dow))))
+  (s/or :day-of-week ::simple-day-of-week
+        :nth-day-of-week ::nth-day-of-week))
 
 (s/def ::day-of-month*
   (s/nonconforming
@@ -50,14 +94,11 @@
          :neg (s/int-in -31 (inc -1)))))
 
 (s/def ::day-of-month
-  (s/nonconforming
-   (s/or :range (s/coll-of (s/tuple ::day-of-month* ::day-of-month*))
-         :one ::day-of-month*)))
+  (range-or-one-of ::day-of-month*))
 
 (defn parse-time [x]
   (cond (ts/local-time? x) x
-        (string? x) (try (t/parse x) (catch Exception _ nil))
-        :else nil))
+        (string? x) (try (t/parse x) (catch Exception _ nil))))
 
 (defn normalize-set [x]
   (if (set? x)
@@ -65,37 +106,34 @@
     #{x}))
 
 (defmacro nested-set-or-one-of [spec]
-  `(s/and (s/conformer normalize-set) (s/coll-of ~spec :kind set?)))
-
-(s/def ::h-int (s/int-in 0 24))
-(s/def ::m-int (s/int-in 0 60))
-(s/def ::s-int (s/int-in 0 60))
-
-(s/def ::h
-  (nested-set-or-one-of
-   (s/nonconforming
-    (s/or :range (s/map-of ::h-int ::h-int)
-          :int ::h-int))))
-
-(s/def ::m
-  (nested-set-or-one-of
-   (s/nonconforming
-    (s/or :range (s/map-of ::m-int ::m-int)
-          :int ::m-int))))
-
-(s/def ::s
-  (nested-set-or-one-of
-   (s/nonconforming
-    (s/or :range (s/map-of ::s-int ::s-int)
-          :int ::s-int))))
-
-(s/def ::time-expr
-  (s/keys :req-un [(or ::h ::m ::s)]))
+  `(let [s# ~spec
+         set# (s/coll-of s# :kind set?)]
+     (s/with-gen (s/and (s/conformer normalize-set) set#)
+       #(gen/one-of [(s/gen s#) (s/gen set#)]))))
 
 (def unit->n
   {:h 24
    :m 60
    :s 60})
+
+(s/def ::h-int (s/int-in 0 (unit->n :h)))
+(s/def ::m-int (s/int-in 0 (unit->n :m)))
+(s/def ::s-int (s/int-in 0 (unit->n :s)))
+
+(s/def ::h
+  (nested-set-or-one-of
+   (range-or-one-of ::h-int)))
+
+(s/def ::m
+  (nested-set-or-one-of
+   (range-or-one-of ::m-int)))
+
+(s/def ::s
+  (nested-set-or-one-of
+   (range-or-one-of ::s-int)))
+
+(s/def ::time-expr
+  (s/keys :req-un [(or ::h ::m ::s)]))
 
 (defn fill-lesser-units [t-expr]
   (first
@@ -139,7 +177,8 @@
 
 (s/def ::time
   (s/and
-   (s/or :time (s/and (s/conformer parse-time) ts/local-time?)
+   (s/or :time (s/with-gen (s/and (s/conformer parse-time) ts/local-time?)
+                 time-gen)
          :time-expr ::time-expr)
    (s/conformer second)))
 
@@ -148,7 +187,8 @@
         (string? x) (try (t/zone x) (catch Exception _ nil))))
 
 (s/def ::tz
-  (s/and (s/conformer parse-tz) ts/zone-id?))
+  (s/with-gen (s/and (s/conformer parse-tz) ts/zone-id?)
+    zone-id-gen))
 
 (s/def :madstap.recex.dst/transition-type
   (s/nilable #{:overlap :gap}))
@@ -165,21 +205,24 @@
   #{:skip :include})
 
 (s/def ::dst-opts
-  (s/and
-   (s/conformer #(when (map? %)
-                   (set/rename-keys % {:dst/overlap :madstap.recex.dst/overlap
-                                       :dst/gap :madstap.recex.dst/gap})))
-   (s/keys :opt [:madstap.recex.dst/overlap
-                 :madstap.recex.dst/gap])))
+  (let [keys-spec (s/keys :opt [:madstap.recex.dst/overlap
+                                :madstap.recex.dst/gap])]
+    (s/with-gen (s/and
+                 (s/conformer #(when (map? %)
+                                 (set/rename-keys % {:dst/overlap :madstap.recex.dst/overlap
+                                                     :dst/gap :madstap.recex.dst/gap})))
+                 keys-spec)
+      #(s/gen keys-spec))))
 
 (s/def ::inner-recex
-  (s/and vector?
-         (s/cat :month (s/? (nested-set-or-one-of ::month))
-                :day-of-week (s/? (nested-set-or-one-of ::day-of-week))
-                :day-of-month (s/? (nested-set-or-one-of ::day-of-month))
-                :time (s/? (nested-set-or-one-of ::time))
-                :tz (s/? (nested-set-or-one-of ::tz))
-                :dst-opts (s/? ::dst-opts))))
+  (let [re-spec (s/cat :month (s/? (nested-set-or-one-of ::month))
+                       :day-of-week (s/? (nested-set-or-one-of ::day-of-week))
+                       :day-of-month (s/? (nested-set-or-one-of ::day-of-month))
+                       :time (s/? (nested-set-or-one-of ::time))
+                       :tz (s/? (nested-set-or-one-of ::tz))
+                       :dst-opts (s/? ::dst-opts))]
+    (s/with-gen (s/and vector? re-spec)
+      #(gen/fmap vec (s/gen re-spec)))))
 
 (s/def ::recex
   (nested-set-or-one-of ::inner-recex))
