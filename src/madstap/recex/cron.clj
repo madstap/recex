@@ -27,31 +27,24 @@
   (try (Integer/parseInt s)
        (catch Exception _)))
 
-(defn parse-month [s]
-  (or (and (parse-int s) (t/month (parse-int s)))
-      (t/month s)))
-
-(defn parse-day [s]
-  )
-
 (defn filter-steps [step xs]
   (->> (medley/indexed xs)
        (keep (fn [[idx x]]
                (when (zero? (mod idx step))
                  x)))))
 
-(def wildcard? #{"*"})
+(def wildcard? (comp boolean #{"*"}))
 
-(defn time-parser [unit]
+(defn int-parser [max]
   (fn [s]
     (if (wildcard? s)
-      {0 (dec (recex/unit->n unit))}
+      {0 (dec max)}
       (->> (split-list s)
            (map (fn [x]
                   (if-let [[base step] (split-step x)]
                     (->> (if-let [[from to] (split-range base)]
                            (range (parse-int from) (inc (parse-int to)))
-                           (range (parse-int base) (recex/unit->n unit)))
+                           (range (parse-int base) max))
                          (filter-steps (parse-int step))
                          (set))
                     (if-let [[from to] (split-range x)]
@@ -60,53 +53,107 @@
            (into #{})
            (recex/normalize-set)))))
 
-(def parse-m (time-parser :m))
+(def parse-m (int-parser (recex/unit->n :m)))
 
-(def parse-h (time-parser :h))
+(def parse-h (int-parser (recex/unit->n :h)))
+
+;; Confusing magic number, but works in the same way as using 60 for minutes
+;; even though the minute slot only goes up to 59
+(def parse-day (int-parser 32))
+
+(defn parse-month-scalar [s]
+  (or (some-> (parse-int s) (t/month))
+      (t/month s)))
+
+(defn parse-month [s]
+  (->> (split-list s)
+       (map (fn [x]
+              (if-let [[base step] (split-step x)]
+                (->> (if-let [[from to] (split-range base)]
+                       (range (t/int (parse-month-scalar from))
+                              (inc (t/int (parse-month-scalar to))))
+                       (range (t/int (parse-month-scalar base)) (inc 12)))
+                     (filter-steps (parse-int step))
+                     (map t/month)
+                     (set))
+                (if-let [[from to] (split-range x)]
+                  {(parse-month-scalar from) (parse-month-scalar to)}
+                  (parse-month-scalar x)))))
+       (into #{})
+       (recex/normalize-set)))
+
+(def int->day
+  {0 (t/day-of-week "SUN")
+   1 (t/day-of-week "MON")
+   2 (t/day-of-week "TUE")
+   3 (t/day-of-week "WED")
+   4 (t/day-of-week "THUR")
+   5 (t/day-of-week "FRI")
+   6 (t/day-of-week "SAT")
+   7 (t/day-of-week "SUN")})
+
+(defn parse-dow-scalar [s]
+  (if-some [i (parse-int s)]
+    (if (zero? i) (t/day-of-week "SUN") (t/day-of-week i))
+    (t/day-of-week s)))
+
+(defn parse-dow [s]
+  (->> (split-list s)
+       (map (fn [x]
+              (if-let [[base step] (split-step x)]
+                (->> (if-let [[from to] (split-range base)]
+                       (range (t/int (parse-dow-scalar from))
+                              (inc (t/int (parse-dow-scalar to))))
+                       (range (t/int (parse-dow-scalar base)) (inc 7)))
+                     (filter-steps (parse-int step))
+                     (map t/day-of-week)
+                     (set))
+                (if-let [[from to] (split-range x)]
+                  {(parse-dow-scalar from) (parse-dow-scalar to)}
+                  (parse-dow-scalar x)))))
+       (into #{})
+       (recex/normalize-set)))
+
+(defn unwrap-simple [x]
+  (if (and (set? x) (= 1 (count x))) (first x) x))
 
 (defn time-expr [fields]
   (-> fields
       (select-keys [:m :h])
       (update :m parse-m)
-      (update :h parse-h)))
+      (update :m unwrap-simple)
+      (update :h parse-h)
+      (update :h unwrap-simple)))
+
+(defn unwrap-simple-slots [recex]
+  (if (set? recex)
+    (into #{} (map unwrap-simple-slots) recex)
+    (into [] (map unwrap-simple) recex)))
 
 (defn cron->recex [cron]
-  (let [fields (split-fields cron)
+  (let [{:keys [m h day month day-of-week] :as fields} (split-fields cron)
         time (time-expr fields)]
-    [time]))
+    (-> (case (mapv wildcard? [day month day-of-week])
+          [true true true] [time]
+          [false true true] [(parse-day day) time]
+          [true false true] [(parse-month month) time]
+          [true true false] [(parse-dow day-of-week) time]
+          [false false true] [(parse-month month) (parse-day day) time]
+          [true false false] [(parse-month month) (parse-dow day-of-week) time]
+          [false true false] #{[(parse-day day) time]
+                               [(parse-dow day-of-week) time]}
+          [false false false] #{[(parse-month month) (parse-day day) time]
+                                [(parse-month month) (parse-dow day-of-week) time]})
+        (unwrap-simple-slots))))
 
 (comment
 
-  (cron->recex "2-3,6-7       2-10/2       *       *       *")
 
-  (time-expr (split-fields "2-3,6-7       2-10/2       *       2       *"))
 
-  (split-range "2-10")
+  (cron->recex "2-4  2-6/2 * 2 *")
 
-  (split-range "2-3")
+  (cron->recex "2-4  2-6/2 2 2 *")
 
-  (recex/unit->n :m)
-
-  (parse-m "*")
-
-  (parse-m "1,2-4,50")
-
-  (parse-m "2-10/2")
-
-  (def s "2-10/2")
-
-  (-> (split-list s))
-
-  (split-step s)
-
-  (filter-steps (range (inc 10)) 4)
-
-  (split-range "2-3")
-
-  (split-range "2")
-
-  (split-list "2,3,2")
-
-  (map parse-int (split-list "2,3/4,4-5"))
+  (recex/valid? (cron->recex "2-4  2-6/2 2 2 2-4"))
 
   )
