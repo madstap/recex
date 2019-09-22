@@ -217,7 +217,23 @@
   (is (= (take 4 (rec/times [first-qtr 15] (yr 2019)))
          (take 4 (rec/times [{:january :march} 15] (yr 2019)))))
   (is (= (take 10 (rec/times [{1 15}] (yr 2019)))
-         (take 10 (rec/times [(set (range 1 (inc 15)))] (yr 2019))))))
+         (take 10 (rec/times [(set (range 1 (inc 15)))] (yr 2019)))))
+  (is (= [#time/zoned-date-time "2019-09-26T00:00Z[UTC]"
+          #time/zoned-date-time "2019-09-27T00:00Z[UTC]"
+          #time/zoned-date-time "2019-09-28T00:00Z[UTC]"
+          #time/zoned-date-time "2019-09-29T00:00Z[UTC]"
+          #time/zoned-date-time "2019-09-30T00:00Z[UTC]"
+
+          #time/zoned-date-time "2019-10-27T00:00Z[UTC]"
+          #time/zoned-date-time "2019-10-28T00:00Z[UTC]"
+          #time/zoned-date-time "2019-10-29T00:00Z[UTC]"
+          #time/zoned-date-time "2019-10-30T00:00Z[UTC]"
+          #time/zoned-date-time "2019-10-31T00:00Z[UTC]"]
+
+         (take 10 (rec/times [{-5 -1}] #time/instant "2019-09-20T00:00:00Z"))))
+  ;; TODO:
+  #_(is (= (take 20 (rec/times [{25 -1}]))
+           (take 20 (rec/times [{25 31}])))))
 
 (def g (comp gen/generate s/gen))
 
