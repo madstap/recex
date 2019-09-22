@@ -293,6 +293,20 @@ Omitting the `now` argument makes the function impure, and thus trickier to test
 (take 2 (recex/times ["00:00"])) ; Implicit `(t/now)`.
 ```
 
+An exception will be thrown on an impossible combination of month and day
+or month, nth day of week and day.
+
+```clojure
+;; These all throw exceptions:
+
+(recex/times [[-1 :friday] 1])
+(recex/times [[1 :monday] -1]
+(recex/times [:february 31])
+```
+
+The `recex/valid?` predicate can be used to check a recex before
+it is passed to `recex/times`.
+
 ### Chime
 
 To use recex together with chime it's necessary to translate
@@ -309,27 +323,6 @@ before java.time was a thing.
 ```
 
 (Maybe someone could port chime to java.time)
-
-## Caveats/warnings
-
-### Impossible combinations
-
-Specifying an impossible recex is not considered valid, but currently
-this is not checked. For example:
-
-```clojure
-;; The last friday of the month that is also the 1st day of the month.
-[[-1 :friday] 1 "12:00"]
-```
-
-This is an impossible combination, and the current behavior is an infinite loop.
-If you accept recexes from untrusted sources,
-you're gonna have a bad time (denial of service attacks).
-
-You could probably mitigate this with a timeout.
-
-Doing some math to validate whether a recex is impossible should be doable,
-but may be non-trivial. PRs welcome.
 
 ## Prior art
 
