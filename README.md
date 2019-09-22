@@ -5,7 +5,7 @@ express an infinite series of recurring times.
 
 ## Project maturity
 
-Still figuring out the api, breaking changes are likely.
+Alpha. Breaking changes unlikely, but possible.
 
 ## Rationale
 
@@ -60,7 +60,7 @@ I haven't deployed to clojars yet, but you can depend on the library with `deps.
 
 ```clojure
 madstap/recex {:git/url "https://github.com/madstap/recex.git"
-               :sha "d350616647ba1274177673645f01b6d7cbf2d1bb"}
+               :sha "2c3997210967f5dd68c8583cf228f741e7a8505b"}
 ```
 
 ### recex grammar
@@ -302,6 +302,10 @@ or month, nth day of week and day.
 (recex/times [[-1 :friday] 1])
 (recex/times [[1 :monday] -1]
 (recex/times [:february 31])
+
+;; While probably a mistake, this won't throw as it's still possible
+;; to generate times, it'll ignore the 31
+(recex/times [:february #{29 31}])
 ```
 
 The `recex/valid?` predicate can be used to check a recex before
