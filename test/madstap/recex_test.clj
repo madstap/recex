@@ -230,3 +230,12 @@
   (is (g ::rec/tz))
   (is (g ::rec/dst-opts))
   (is (g ::rec/recex)))
+
+(deftest impossible?-test
+  (is (false? (rec/impossible? [:february 29])))
+  (is (true? (rec/impossible? [:february 30])))
+  (is (false? (rec/impossible? [[1 :monday] 1])))
+  (is (true? (rec/impossible? [[-1 :friday] 2])))
+  (is (false? (rec/impossible? [[-1 :friday] #{2 31}])))
+  (is (true? (rec/impossible? [:august [-1 :monday] 24])))
+  (is (false? (rec/impossible? [[-1 :friday] -1]))))

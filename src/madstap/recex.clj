@@ -8,6 +8,7 @@
    [cljc.java-time.month :as month]
    [cljc.java-time.zone-id :as zone-id]
    [cljc.java-time.zoned-date-time :as zoned-date-time]
+   [clojure.math.combinatorics :as combo]
    [clojure.set :as set]
    [clojure.spec.alpha :as s]
    [clojure.spec.gen.alpha :as gen]
@@ -22,8 +23,11 @@
 (def parse-month
   (comp t/parse-month str*))
 
+(def all-months
+  (map month/of (range 1 (inc 12))))
+
 (defn month-gen []
-  (s/gen (set (map month/of (range 1 (inc 12))))))
+  (s/gen (set all-months)))
 
 (defn day-of-week-gen []
   (s/gen (set (map day-of-week/of (range 1 (inc 7))))))
@@ -274,9 +278,113 @@
 (defn normalize [recex]
   (into #{} (mapcat normalize-inner) (s/conform ::recex recex)))
 
-;; Added indirection so this doesn't break when making the switch to spec2
+(def month->max-days
+  {(t/month "JAN") 31
+   (t/month "FEB") 29
+   (t/month "MAR") 31
+   (t/month "APR") 30
+   (t/month "MAY") 31
+   (t/month "JUN") 30
+   (t/month "JUL") 31
+   (t/month "AUG") 31
+   (t/month "SEP") 30
+   (t/month "OCT") 31
+   (t/month "NOV") 30
+   (t/month "DEC") 31})
+
+(defn days-in-month [t]
+  (t/day-of-month (t/last-day-of-month t)))
+
+(defn neg-day-of-month [t]
+  (dec (- (t/day-of-month t) (days-in-month t))))
+
+(comment
+  (time
+   (->> all-months
+        (medley/distinct-by month->max-days)
+        (pmap (fn [m]
+                [(month->max-days m)
+                 (->> (concat (range -5 0) (range 1 (inc 5)))
+                      (pmap (fn [n]
+                              [n (->> (times [m [n :monday]])
+                                      (mapcat (juxt t/day-of-month neg-day-of-month))
+                                      (take 400)
+                                      (distinct)
+                                      (sort)
+                                      (into (sorted-set)))]))
+                      (into (sorted-map)))]))
+        (into (sorted-map))))
+
+  )
+
+(def max-days->nth->possible-days
+  {29
+   {-5 #{-29 1},
+    -4 #{-28 -27 -26 -25 -24 -23 -22 1 2 3 4 5 6 7 8},
+    -3 #{-21 -20 -19 -18 -17 -16 -15 8 9 10 11 12 13 14 15},
+    -2 #{-14 -13 -12 -11 -10 -9 -8 15 16 17 18 19 20 21 22},
+    -1 #{-7 -6 -5 -4 -3 -2 -1 22 23 24 25 26 27 28 29},
+    1 #{-29 -28 -27 -26 -25 -24 -23 -22 1 2 3 4 5 6 7},
+    2 #{-22 -21 -20 -19 -18 -17 -16 -15 8 9 10 11 12 13 14},
+    3 #{-15 -14 -13 -12 -11 -10 -9 -8 15 16 17 18 19 20 21},
+    4 #{-8 -7 -6 -5 -4 -3 -2 -1 22 23 24 25 26 27 28},
+    5 #{-1 29}},
+   30
+   {-5 #{-30 -29 1 2},
+    -4 #{-28 -27 -26 -25 -24 -23 -22 3 4 5 6 7 8 9},
+    -3 #{-21 -20 -19 -18 -17 -16 -15 10 11 12 13 14 15 16},
+    -2 #{-14 -13 -12 -11 -10 -9 -8 17 18 19 20 21 22 23},
+    -1 #{-7 -6 -5 -4 -3 -2 -1 24 25 26 27 28 29 30},
+    1 #{-30 -29 -28 -27 -26 -25 -24 1 2 3 4 5 6 7},
+    2 #{-23 -22 -21 -20 -19 -18 -17 8 9 10 11 12 13 14},
+    3 #{-16 -15 -14 -13 -12 -11 -10 15 16 17 18 19 20 21},
+    4 #{-9 -8 -7 -6 -5 -4 -3 22 23 24 25 26 27 28},
+    5 #{-2 -1 29 30}},
+   31
+   {-5 #{-31 -30 -29 1 2 3},
+    -4 #{-28 -27 -26 -25 -24 -23 -22 4 5 6 7 8 9 10},
+    -3 #{-21 -20 -19 -18 -17 -16 -15 11 12 13 14 15 16 17},
+    -2 #{-14 -13 -12 -11 -10 -9 -8 18 19 20 21 22 23 24},
+    -1 #{-7 -6 -5 -4 -3 -2 -1 25 26 27 28 29 30 31},
+    1 #{-31 -30 -29 -28 -27 -26 -25 1 2 3 4 5 6 7},
+    2 #{-24 -23 -22 -21 -20 -19 -18 8 9 10 11 12 13 14},
+    3 #{-17 -16 -15 -14 -13 -12 -11 15 16 17 18 19 20 21},
+    4 #{-10 -9 -8 -7 -6 -5 -4 22 23 24 25 26 27 28},
+    5 #{-3 -2 -1 29 30 31}}})
+
+(defn impossible-month-day? [months days]
+  (if (or (empty? months) (empty? days))
+    false
+    (not (some (fn [[m d]]
+                 (<= d (month->max-days m)))
+               (combo/cartesian-product months days)))))
+
+(defn impossible-nth-day-of-week? [months dows days]
+  (let [mnths (or (seq months) all-months)]
+    (if (or (empty? dows) (empty? days))
+      false
+      (not (some (fn [[m [_ {:keys [n]}] d]]
+                   (let [possible-days (get-in max-days->nth->possible-days
+                                               [(month->max-days m) n])]
+                     (contains? possible-days d)))
+                 (combo/cartesian-product mnths dows days))))))
+
+(defn impossible? [recex]
+  (let [normalized (normalize recex)]
+    (or (some (fn [{:keys [month day-of-month day-of-week]}]
+                (let [nth-dows (filter #(= :nth-day-of-week (first %)) day-of-week)]
+                  (or (impossible-month-day? month day-of-month)
+                      (impossible-nth-day-of-week? month nth-dows day-of-month))))
+              normalized)
+        false)))
+
+(defn explain-str [recex]
+  (cond (not (s/valid? ::recex recex)) (s/explain-str ::recex recex)
+        (impossible? recex) (str "Impossible combination of either month/day "
+                                 "or month/nth-day-of-week/day.")))
+
 (defn valid? [recex]
-  (s/valid? ::recex recex))
+  (not (explain-str recex)))
 
 (defn interleave-time-seqs
   "Takes sequences of instants in time and returns a single lazy sequence
@@ -303,16 +411,12 @@
   (fn [time]
     (= month (t/month time))))
 
-(defn days-in-month [t]
-  (t/day-of-month (t/last-day-of-month t)))
-
 (defn day-of-month-filter [day]
   (if (pos? day)
     (fn [time]
       (= day (t/day-of-month time)))
     (fn [time]
-      (= (+ (inc (days-in-month time)) day)
-         (t/day-of-month time)))))
+      (= day (neg-day-of-month time)))))
 
 (defn day-of-week-filter [day-of-week]
   (fn [time]
@@ -401,6 +505,8 @@
   ([recex]
    (times recex (t/now)))
   ([recex now]
+   (when-some [s (explain-str recex)]
+     (throw (ex-info s {:recex recex})))
    (->> (normalize recex)
         (map #(inner-times (t/instant now) %))
         (apply interleave-time-seqs))))
