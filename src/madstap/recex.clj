@@ -437,7 +437,7 @@
   (let [date (t/date t)]
     (count
      (->> (iterate t/inc (t/first-day-of-month date))
-          (medley/take-upto #(= date (t/date %)))
+          (medley/take-upto #{date})
           (filter (day-of-week-filter (t/day-of-week t)))))))
 
 (defn nth-day-of-week-filter [n day-of-week]
