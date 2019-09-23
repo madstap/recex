@@ -20,8 +20,10 @@
 (defn str* [x]
   (if (ident? x) (name x) (str x)))
 
-(def parse-month
-  (comp t/parse-month str*))
+(defn parse-month [x]
+  (if (ts/month? x)
+    x
+    (t/parse-month (str* x))))
 
 (def all-months
   (map month/of (range 1 (inc 12))))

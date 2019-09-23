@@ -145,15 +145,3 @@
           [false false false] #{[(parse-month month) (parse-day day) time]
                                 [(parse-month month) (parse-dow day-of-week) time]})
         (unwrap-simple-slots))))
-
-(comment
-
-
-
-  (cron->recex "2-4  2-6/2 * 2 *")
-
-  (cron->recex "2-4  2-6/2 2 2 *")
-
-  (recex/valid? (cron->recex "2-4  2-6/2 2 2 2-4"))
-
-  )
