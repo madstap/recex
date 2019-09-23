@@ -82,21 +82,23 @@
   (parser parse-month-scalar t/month 12))
 
 (def parse-day
-  (parser parse-int identity (inc 31)))
+  (parser parse-int identity 31))
 
-(defn wrap-wildcard [f max]
+(defn wrap-wildcard [f wildcard-val]
   (fn [s]
     (if (wildcard? s)
-      {0 (dec max)}
+      wildcard-val
       (f s))))
 
 (def parse-m
-  (-> (parser parse-int identity (recex/unit->n :m))
-      (wrap-wildcard (recex/unit->n :m))))
+  (let [max (dec (recex/unit->n :m))]
+    (-> (parser parse-int identity max)
+        (wrap-wildcard {0 max}))))
 
 (def parse-h
-  (-> (parser parse-int identity (recex/unit->n :h))
-      (wrap-wildcard (recex/unit->n :h))))
+  (let [max (dec (recex/unit->n :h))]
+    (-> (parser parse-int identity max)
+        (wrap-wildcard {0 max}))))
 
 (defn unwrap-simple [x]
   (if (and (set? x) (= 1 (count x))) (first x) x))
