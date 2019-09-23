@@ -14,6 +14,7 @@
 (def every-min {:m {0 59} :h {0 23}})
 
 (deftest cron->recex
+  (is (recex= [{:m {0 59}, :h #{0 20 10}}] (cron/cron->recex "* /10 * * *")))
   (is (recex= [{:m {2 4}, :h #{4 6 2}}] (cron/cron->recex "2-4  2-6/2 * * *")))
   (is (recex= [{:m {2 4}, :h #{20 22}}] (cron/cron->recex "2-4  20/2 * * *")))
   (is (recex= [{:m {2 4}, :h #{1 2 20 22}}] (cron/cron->recex "2-4  1,2,20/2 * * *")))

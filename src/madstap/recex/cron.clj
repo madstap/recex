@@ -16,7 +16,7 @@
   (str/split s #","))
 
 (defn split-step [s]
-  (when-some [[_ base step] (re-find #"^([^/]+)/([^/]+)$" s)]
+  (when-some [[_ base step] (re-find #"^([^/]+)?/([^/]+)$" s)]
     [base step]))
 
 (defn split-range [s]
@@ -62,10 +62,12 @@
     (->> (split-list s)
          (map (fn [x]
                 (if-let [[base step] (split-step x)]
-                  (->> (if-let [[from to] (split-range base)]
-                         (range (to-int (parse-scalar from))
-                                (inc (to-int (parse-scalar to))))
-                         (range (to-int (parse-scalar base)) (inc max)))
+                  (->> (if (nil? base)
+                         (range 0 (inc max))
+                         (if-let [[from to] (split-range base)]
+                           (range (to-int (parse-scalar from))
+                                  (inc (to-int (parse-scalar to))))
+                           (range (to-int (parse-scalar base)) (inc max))))
                        (filter-steps (parse-int step))
                        (map constructor)
                        (set))
