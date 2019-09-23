@@ -39,16 +39,6 @@
   (or (some-> (parse-int s) (t/month))
       (t/month s)))
 
-(def int->day
-  {0 (t/day-of-week "SUN")
-   1 (t/day-of-week "MON")
-   2 (t/day-of-week "TUE")
-   3 (t/day-of-week "WED")
-   4 (t/day-of-week "THUR")
-   5 (t/day-of-week "FRI")
-   6 (t/day-of-week "SAT")
-   7 (t/day-of-week "SUN")})
-
 (defn parse-dow-scalar [s]
   (if-some [i (parse-int s)]
     (if (zero? i) (t/day-of-week "SUN") (t/day-of-week i))
@@ -93,14 +83,14 @@
       (f s))))
 
 (def parse-m
-  (let [max (dec (recex/unit->n :m))]
-    (-> (parser parse-int identity max)
-        (wrap-wildcard {0 max}))))
+  (let [max-m (dec (recex/unit->n :m))]
+    (-> (parser parse-int identity max-m)
+        (wrap-wildcard {0 max-m}))))
 
 (def parse-h
-  (let [max (dec (recex/unit->n :h))]
-    (-> (parser parse-int identity max)
-        (wrap-wildcard {0 max}))))
+  (let [max-h (dec (recex/unit->n :h))]
+    (-> (parser parse-int identity max-h)
+        (wrap-wildcard {0 max-h}))))
 
 (defn unwrap-simple [x]
   (if (and (set? x) (= 1 (count x))) (first x) x))
