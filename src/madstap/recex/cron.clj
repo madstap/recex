@@ -42,7 +42,9 @@
 (defn parse-dow-scalar [s]
   (if-some [i (parse-int s)]
     (if (zero? i) (t/day-of-week "SUN") (t/day-of-week i))
-    (t/day-of-week s)))
+    (if (= "thu" s)
+      (t/day-of-week "thursday")
+      (t/day-of-week s))))
 
 (defn to-int [x]
   (if (integer? x) x (t/int x)))
