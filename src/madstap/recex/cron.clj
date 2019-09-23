@@ -35,52 +35,9 @@
 
 (def wildcard? (comp boolean #{"*"}))
 
-(defn int-parser [max]
-  (fn [s]
-    (if (wildcard? s)
-      {0 (dec max)}
-      (->> (split-list s)
-           (map (fn [x]
-                  (if-let [[base step] (split-step x)]
-                    (->> (if-let [[from to] (split-range base)]
-                           (range (parse-int from) (inc (parse-int to)))
-                           (range (parse-int base) max))
-                         (filter-steps (parse-int step))
-                         (set))
-                    (if-let [[from to] (split-range x)]
-                      {(parse-int from) (parse-int to)}
-                      (parse-int x)))))
-           (into #{})
-           (recex/normalize-set)))))
-
-(def parse-m (int-parser (recex/unit->n :m)))
-
-(def parse-h (int-parser (recex/unit->n :h)))
-
-;; Confusing magic number, but works in the same way as using 60 for minutes
-;; even though the minute slot only goes up to 59
-(def parse-day (int-parser 32))
-
 (defn parse-month-scalar [s]
   (or (some-> (parse-int s) (t/month))
       (t/month s)))
-
-(defn parse-month [s]
-  (->> (split-list s)
-       (map (fn [x]
-              (if-let [[base step] (split-step x)]
-                (->> (if-let [[from to] (split-range base)]
-                       (range (t/int (parse-month-scalar from))
-                              (inc (t/int (parse-month-scalar to))))
-                       (range (t/int (parse-month-scalar base)) (inc 12)))
-                     (filter-steps (parse-int step))
-                     (map t/month)
-                     (set))
-                (if-let [[from to] (split-range x)]
-                  {(parse-month-scalar from) (parse-month-scalar to)}
-                  (parse-month-scalar x)))))
-       (into #{})
-       (recex/normalize-set)))
 
 (def int->day
   {0 (t/day-of-week "SUN")
@@ -97,22 +54,49 @@
     (if (zero? i) (t/day-of-week "SUN") (t/day-of-week i))
     (t/day-of-week s)))
 
-(defn parse-dow [s]
-  (->> (split-list s)
-       (map (fn [x]
-              (if-let [[base step] (split-step x)]
-                (->> (if-let [[from to] (split-range base)]
-                       (range (t/int (parse-dow-scalar from))
-                              (inc (t/int (parse-dow-scalar to))))
-                       (range (t/int (parse-dow-scalar base)) (inc 7)))
-                     (filter-steps (parse-int step))
-                     (map t/day-of-week)
-                     (set))
-                (if-let [[from to] (split-range x)]
-                  {(parse-dow-scalar from) (parse-dow-scalar to)}
-                  (parse-dow-scalar x)))))
-       (into #{})
-       (recex/normalize-set)))
+(defn to-int [x]
+  (if (integer? x) x (t/int x)))
+
+(defn parser [parse-scalar constructor max]
+  (fn [s]
+    (->> (split-list s)
+         (map (fn [x]
+                (if-let [[base step] (split-step x)]
+                  (->> (if-let [[from to] (split-range base)]
+                         (range (to-int (parse-scalar from))
+                                (inc (to-int (parse-scalar to))))
+                         (range (to-int (parse-scalar base)) (inc max)))
+                       (filter-steps (parse-int step))
+                       (map constructor)
+                       (set))
+                  (if-let [[from to] (split-range x)]
+                    {(parse-scalar from) (parse-scalar to)}
+                    (parse-scalar x)))))
+         (into #{})
+         (recex/normalize-set))))
+
+(def parse-dow
+  (parser parse-dow-scalar t/day-of-week 7))
+
+(def parse-month
+  (parser parse-month-scalar t/month 12))
+
+(def parse-day
+  (parser parse-int identity (inc 31)))
+
+(defn wrap-wildcard [f max]
+  (fn [s]
+    (if (wildcard? s)
+      {0 (dec max)}
+      (f s))))
+
+(def parse-m
+  (-> (parser parse-int identity (recex/unit->n :m))
+      (wrap-wildcard (recex/unit->n :m))))
+
+(def parse-h
+  (-> (parser parse-int identity (recex/unit->n :h))
+      (wrap-wildcard (recex/unit->n :h))))
 
 (defn unwrap-simple [x]
   (if (and (set? x) (= 1 (count x))) (first x) x))
@@ -120,10 +104,8 @@
 (defn time-expr [fields]
   (-> fields
       (select-keys [:m :h])
-      (update :m parse-m)
-      (update :m unwrap-simple)
-      (update :h parse-h)
-      (update :h unwrap-simple)))
+      (update :m (comp unwrap-simple parse-m))
+      (update :h (comp unwrap-simple parse-h))))
 
 (defn unwrap-simple-slots [recex]
   (if (set? recex)
