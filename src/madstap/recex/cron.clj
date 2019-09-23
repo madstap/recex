@@ -10,7 +10,11 @@
 ;; https://mangolassi.it/topic/9131/unix-scheduling-with-cron
 
 (defn split-fields [cron]
-  (zipmap [:m :h :day :month :day-of-week] (str/split cron #"\s+")))
+  (let [fields (str/split cron #"\s+")]
+    (zipmap (case (count fields)
+              5 [   :m :h :day :month :day-of-week]
+              6 [:s :m :h :day :month :day-of-week])
+            fields)))
 
 (defn split-list [s]
   (str/split s #","))
@@ -84,6 +88,11 @@
       wildcard-val
       (f s))))
 
+(def parse-s
+  (let [max-s (dec (recex/unit->n :s))]
+    (-> (parser parse-int identity max-s)
+        (wrap-wildcard {0 max-s}))))
+
 (def parse-m
   (let [max-m (dec (recex/unit->n :m))]
     (-> (parser parse-int identity max-m)
@@ -99,7 +108,8 @@
 
 (defn time-expr [fields]
   (-> fields
-      (select-keys [:m :h])
+      (select-keys [:s :m :h])
+      (medley/update-existing :s (comp unwrap-simple parse-m))
       (update :m (comp unwrap-simple parse-m))
       (update :h (comp unwrap-simple parse-h))))
 
