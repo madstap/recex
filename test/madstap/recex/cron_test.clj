@@ -20,6 +20,8 @@
   (is (recex= [{:m #{56 58}, :h {0 23}}] (cron/cron->recex "56/2  * * * *")))
   (is (recex= [:sun every-min] (cron/cron->recex "* * * * 7")))
   (is (recex= [{:tue :fri} every-min] (cron/cron->recex "* * * * 2-5")))
+  (is (recex= [{:sun :fri} every-min] (cron/cron->recex "* * * * 0-5")))
+  (is (recex= [{:fri :sun} every-min] (cron/cron->recex "* * * * 5-7")))
   (is (recex= [:feb every-min] (cron/cron->recex "* * * 2 *")))
   (is (recex= [:feb every-min] (cron/cron->recex "* * * 2 *")))
   (is (recex= [#{:aug :oct :dec} every-min] (cron/cron->recex "* * * 8/2 *")))
