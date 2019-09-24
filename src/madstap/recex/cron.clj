@@ -23,7 +23,7 @@
   (next (re-find #"^([^/]+)?/([^/]+)$" s)))
 
 (defn split-range [s]
-  (next (re-find #"^([^\-]+)-([^\-]+)$" s)))
+  (next (re-find #"(?i)^([^\-^L]+)-([^\-]+)$" s)))
 
 (defn parse-int [s]
   (try (Integer/parseInt s)
@@ -44,17 +44,28 @@
 (defn split-nth [s]
   (next (re-find #"^([^#]+)#([^#]+)$" s)))
 
+(defn split-last [s]
+  (if-some [[_ day n] (re-find #"(?i)^([^L]+)?L(-\d+)?" s)]
+    [day (or (some-> n (subs 1)) "1")]))
+
 (defn dow* [s]
   (if-some [i (parse-int s)]
     (if (zero? i) (t/day-of-week "SUN") (t/day-of-week i))
-    (if (= "thu" s)
+    (if (= "thu" (str/lower-case s))
       (t/day-of-week "thursday")
       (t/day-of-week s))))
+
+(defn parse-day-scalar [s]
+  (if-some [[_ n] (split-last s)]
+    (- (parse-int n))
+    (parse-int s)))
 
 (defn parse-dow-scalar [s]
   (if-some [[day n] (split-nth s)]
     [(parse-int n) (dow* day)]
-    (dow* s)))
+    (if-some [[day n] (split-last s)]
+      [(- (parse-int n)) (dow* day)]
+      (dow* s))))
 
 (defn to-int [x]
   (if (integer? x) x (t/int x)))
@@ -86,7 +97,7 @@
   (parser parse-month-scalar t/month 12))
 
 (def parse-day
-  (parser parse-int identity 31))
+  (parser parse-day-scalar identity 31))
 
 (defn wrap-wildcard [f wildcard-val]
   (fn [s]
