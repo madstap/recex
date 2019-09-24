@@ -40,4 +40,5 @@
   (is (recex= #{[:feb {:tue :thur} every-min]
                 [:feb 2 every-min]           } (cron/cron->recex "* * 2 2 2-4")))
   (is (recex= #{[{:tue :thur} every-min]
-                [{2 10} every-min]           } (cron/cron->recex "* * 2-10 * 2-4"))))
+                [{2 10} every-min]           } (cron/cron->recex "* * 2-10 * 2-4")))
+  (is (recex= [[1 :mon] {:m 0 :h 0}] (cron/cron->recex "0 0 * * mon#1"))))

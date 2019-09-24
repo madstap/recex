@@ -20,12 +20,10 @@
   (str/split s #","))
 
 (defn split-step [s]
-  (when-some [[_ base step] (re-find #"^([^/]+)?/([^/]+)$" s)]
-    [base step]))
+  (next (re-find #"^([^/]+)?/([^/]+)$" s)))
 
 (defn split-range [s]
-  (when-some [[_ from to] (re-find #"^([^\-]+)-([^\-]+)$" s)]
-    [from to]))
+  (next (re-find #"^([^\-]+)-([^\-]+)$" s)))
 
 (defn parse-int [s]
   (try (Integer/parseInt s)
@@ -37,18 +35,26 @@
                (when (zero? (mod idx step))
                  x)))))
 
-(def wildcard? (comp boolean #{"*"}))
+(def wildcard? (comp boolean #{"*" "?"}))
 
 (defn parse-month-scalar [s]
   (or (some-> (parse-int s) (t/month))
       (t/month s)))
 
-(defn parse-dow-scalar [s]
+(defn split-nth [s]
+  (next (re-find #"^([^#]+)#([^#]+)$" s)))
+
+(defn dow* [s]
   (if-some [i (parse-int s)]
     (if (zero? i) (t/day-of-week "SUN") (t/day-of-week i))
     (if (= "thu" s)
       (t/day-of-week "thursday")
       (t/day-of-week s))))
+
+(defn parse-dow-scalar [s]
+  (if-some [[day n] (split-nth s)]
+    [(parse-int n) (dow* day)]
+    (dow* s)))
 
 (defn to-int [x]
   (if (integer? x) x (t/int x)))
