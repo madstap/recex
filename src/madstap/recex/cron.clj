@@ -118,9 +118,14 @@
     (into #{} (map unwrap-simple-slots) recex)
     (into [] (map unwrap-simple) recex)))
 
+(defn add-tz [recex tz]
+  (if (set? recex)
+    (into #{} (map #(add-tz % tz)) recex)
+    (conj recex tz)))
+
 (defn cron->recex
   ([cron tz]
-   (-> (cron->recex cron) (conj tz)))
+   (-> (cron->recex cron) (add-tz tz)))
   ([cron]
    (let [{:keys [m h day month day-of-week] :as fields} (split-fields cron)
          time (time-expr fields)]

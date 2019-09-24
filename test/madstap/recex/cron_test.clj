@@ -14,6 +14,8 @@
 (def every-min {:m {0 59} :h {0 23}})
 
 (deftest cron->recex
+  (is (recex= #{[2 {:m 0 :h 2} "Europe/Oslo"]
+                [:tue {:m 0 :h 2} "Europe/Oslo"]} (cron/cron->recex "0 2 2 * 2" "Europe/Oslo")))
   (is (recex= [{:m 0 :h 2} "Europe/Oslo"] (cron/cron->recex "0 2 * * *" "Europe/Oslo")))
   (is (recex= [{:s 30 :m {0 59}, :h {0 23}}] (cron/cron->recex "30 * * * * *")))
   (is (recex= [{:m {0 59}, :h #{0 20 10}}] (cron/cron->recex "* /10 * * *")))
