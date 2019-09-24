@@ -1,12 +1,12 @@
 (ns madstap.recex.cron-test
   (:require
-   [madstap.recex :as recex]
-   [madstap.recex.cron :as cron]
    [clojure.string :as str]
-   [clojure.test :refer [deftest testing is are run-tests test-var]]))
+   [clojure.test :refer [deftest testing is are run-tests test-var]]
+   [madstap.recex :as recex]
+   [madstap.recex.cron :as cron]))
 
 (defn recex= [& recexes]
-  (if-not (every? recex/valid? recexes)
+  (when-not (every? recex/valid? recexes)
     (throw (ex-info (-> (keep recex/explain-str recexes) (str/join "\n"))
                     {:invalid-recexes (remove recex/valid? recexes)})))
   (apply = (map recex/normalize recexes)))
@@ -14,6 +14,7 @@
 (def every-min {:m {0 59} :h {0 23}})
 
 (deftest cron->recex
+  (is (recex= [{:m 0 :h 2} "Europe/Oslo"] (cron/cron->recex "0 2 * * *" "Europe/Oslo")))
   (is (recex= [{:s 30 :m {0 59}, :h {0 23}}] (cron/cron->recex "30 * * * * *")))
   (is (recex= [{:m {0 59}, :h #{0 20 10}}] (cron/cron->recex "* /10 * * *")))
   (is (recex= [{:m {2 4}, :h #{4 6 2}}] (cron/cron->recex "2-4  2-6/2 * * *")))

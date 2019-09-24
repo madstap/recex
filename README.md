@@ -264,6 +264,23 @@ for schedules of this kind, you'll want to use the following dst opts.
                                                   :dst/gap :skip}]
 ```
 
+### Java time objects
+
+While the examples up to this point has used keywords for days of week
+and monhts, and strings for times and time-zones, this is a
+shorthand syntax. They are translated to java time objects, and you
+can use java time objects directly, which might be handy when
+generating recexes. Recex depends on [tick](git@github.com:juxt/tick.git)
+which defines reader literals for these.
+(Which can be [configured](https://juxt.pro/tick/docs/index.html#_serialization).)
+
+```clojure
+;; These are the same:
+[#time/month "AUGUST" #time/day-of-week "FRIDAY" #time/time "12:00" #time/zone "Europe/Oslo"]
+[:august :friday "12:00" "Europe/Oslo"]
+[:aug :fri "12:00" "Europe/Oslo"]
+```
+
 ### Clojure API
 
 Require the namespace:
@@ -311,6 +328,34 @@ or month, nth day of week and day.
 The `recex/valid?` predicate can be used to check a recex before
 it is passed to `recex/times`.
 
+
+#### Cron strings
+
+There's also an util function for compiling cron strings to recexes.
+
+```clojure
+(require '[madstap.recex.cron :as cron])
+
+(cron/cron->recex "/20 12 * * 2-5")
+;=> [{#time/day-of-week "TUESDAY" #time/day-of-week "FRIDAY"} {:m #{0 20 40}, :h 12}]
+```
+
+It accepts both the standard 5 slot version of cron, and 6 slot ones with seconds.
+
+```clojure
+(cron/cron->recex "30 0 0 * * *")
+;=> [{:s 30, :m 0, :h 0}]
+```
+
+Cron strings are compiled to recexes without a specific time zone
+(defaulting to UTC), but `cron->recex` has a second arity where a
+time zone can be specified.
+
+```clojure
+(cron/cron->recex "0 12 * * *" "America/New_York")
+;;=> [{:m 0, :h 12} "America/New_York"]
+```
+
 ### Chime
 
 To use recex together with chime it's necessary to translate
@@ -336,6 +381,14 @@ cron is the de-facto standard time dsl. It is text-based, and not very
 readable (YMMV). Time zones are not part of the expression itself, it
 uses the system time zone or you can choose the time zone with config files
 or env vars, which is quite fiddly.
+
+### [timely](https://github.com/Factual/timely)
+
+A clojure DSL for scheduling. It's a nicer syntax (defined in terms of
+clojure function calls) that compiles to cron strings, coupled with a simple
+scheduler. Being a 1-1 translation to cron, it shares the pros and cons
+of cron's semantics, except aditionally there's a way to delimit schedules to
+being valid only between two points on the timeline.
 
 ### [schyntax](https://github.com/schyntax/schyntax)
 

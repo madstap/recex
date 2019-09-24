@@ -118,18 +118,21 @@
     (into #{} (map unwrap-simple-slots) recex)
     (into [] (map unwrap-simple) recex)))
 
-(defn cron->recex [cron]
-  (let [{:keys [m h day month day-of-week] :as fields} (split-fields cron)
-        time (time-expr fields)]
-    (-> (case (mapv wildcard? [day month day-of-week])
-          [true true true] [time]
-          [false true true] [(parse-day day) time]
-          [true false true] [(parse-month month) time]
-          [true true false] [(parse-dow day-of-week) time]
-          [false false true] [(parse-month month) (parse-day day) time]
-          [true false false] [(parse-month month) (parse-dow day-of-week) time]
-          [false true false] #{[(parse-day day) time]
-                               [(parse-dow day-of-week) time]}
-          [false false false] #{[(parse-month month) (parse-day day) time]
-                                [(parse-month month) (parse-dow day-of-week) time]})
-        (unwrap-simple-slots))))
+(defn cron->recex
+  ([cron tz]
+   (-> (cron->recex cron) (conj tz)))
+  ([cron]
+   (let [{:keys [m h day month day-of-week] :as fields} (split-fields cron)
+         time (time-expr fields)]
+     (-> (case (mapv wildcard? [day month day-of-week])
+           [true true true] [time]
+           [false true true] [(parse-day day) time]
+           [true false true] [(parse-month month) time]
+           [true true false] [(parse-dow day-of-week) time]
+           [false false true] [(parse-month month) (parse-day day) time]
+           [true false false] [(parse-month month) (parse-dow day-of-week) time]
+           [false true false] #{[(parse-day day) time]
+                                [(parse-dow day-of-week) time]}
+           [false false false] #{[(parse-month month) (parse-day day) time]
+                                 [(parse-month month) (parse-dow day-of-week) time]})
+         (unwrap-simple-slots)))))

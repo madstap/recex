@@ -2,7 +2,6 @@
   (:require
    [cljc.java-time.day-of-week :as day-of-week]
    [cljc.java-time.instant :as instant]
-   [cljc.java-time.instant :as instant]
    [cljc.java-time.local-date-time :as date-time]
    [cljc.java-time.local-time :as time]
    [cljc.java-time.month :as month]
