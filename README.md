@@ -7,6 +7,33 @@ express an infinite series of recurring times.
 
 Alpha. Breaking changes unlikely, but possible.
 
+## Quickstart
+
+Add dependency
+
+```clojure
+;; deps.edn
+madstap/recex {:mvn/version "0.1.0}
+
+;; lein/boot
+[madstap/recex "0.1.0"]
+```
+
+Generate schedule
+
+```clojure
+(ns my.app
+  (:require
+   [madstap.recex :as recex]
+   [tick.alpha.api :as t]))
+
+(take 2 (recex/times ["12:00" "Europe/London"] (t/now)))
+;; => (#time/zoned-date-time "2019-09-26T12:00+01:00[Europe/London]"
+;;     #time/zoned-date-time "2019-09-27T12:00+01:00[Europe/London]")
+```
+
+[Docs](#Usage)
+
 ## Rationale
 
 ### Domain specific languages
@@ -53,15 +80,6 @@ like cron and [schyntax](https://github.com/schyntax/schyntax), are
 not defined in terms of structured data.
 
 ## Usage
-
-### Dependency info
-
-I haven't deployed to clojars yet, but you can depend on the library with `deps.edn`.
-
-```clojure
-madstap/recex {:git/url "https://github.com/madstap/recex.git"
-               :sha "2c3997210967f5dd68c8583cf228f741e7a8505b"}
-```
 
 ### recex grammar
 

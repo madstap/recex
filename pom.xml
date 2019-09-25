@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>madstap</groupId>
   <artifactId>recex</artifactId>
-  <version>0.1.0-alpha1</version>
+  <version>0.1.0</version>
   <name>recex</name>
   <dependencies>
     <dependency>
