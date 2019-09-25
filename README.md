@@ -356,6 +356,15 @@ time zone can be specified.
 ;;=> [{:m 0, :h 12} "America/New_York"]
 ```
 
+The cron strings also support most of the features from the
+[Quartz dialect](http://www.quartz-scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html)
+of cron, with the exception of the `W` special character
+(see [#3](https://github.com/madstap/recex/issues/3)) and the year slot.
+
+The weekdays of quartz cron (1-7 = sun-sat) are different from standard cron (0-6 = sun-sat),
+and recex follows the original cron plus the non-standard (7 = sun).
+
+
 ### Chime
 
 To use recex together with chime it's necessary to translate
@@ -382,6 +391,13 @@ readable (YMMV). Time zones are not part of the expression itself, it
 uses the system time zone or you can choose the time zone with config files
 or env vars, which is quite fiddly.
 
+### [Quartz](http://www.quartz-scheduler.org/)
+
+A java library which notably has a dialect of cron with additional features,
+and a java api that does a whole lot of things, many outside the scope of recex.
+Features it has that recex doesn't and I'd be interested to add are
+"nearest weekday to nth of month" and some way to take into consideration holidays.
+
 ### [timely](https://github.com/Factual/timely)
 
 A clojure DSL for scheduling. It's a nicer syntax (defined in terms of
@@ -407,3 +423,10 @@ every x units for n ocurrences and every n years.
 
 The `tick.ical` namespace deals with these, but I don't know how complete it is.
 There's also an [ical4j](https://github.com/ical4j).
+
+## License
+
+Copyright © 2019 Aleksander Madland Stapnes
+
+Distributed under the Eclipse Public License either version 1.0 or (at
+your option) any later version.
