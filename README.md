@@ -382,6 +382,13 @@ of cron, with the exception of the `W` special character
 The weekdays of quartz cron (1-7 = sun-sat) are different from standard cron (0-6 = sun-sat),
 and recex follows the original cron plus the non-standard (7 = sun).
 
+```clojure
+;; Noon last day of february
+(cron/cron->recex "0 12 L 2 *")
+
+;; Triple witching hour
+(cron/cron->recex "0 15 * 3,6,9,12 fri#3" "America/New_York")
+```
 
 ### Chime
 
