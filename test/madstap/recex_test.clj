@@ -5,7 +5,8 @@
    [clojure.spec.gen.alpha :as gen]
    [clojure.test :refer [deftest testing is are run-tests test-var]]
    [tick.core :as t]
-   [madstap.recex :as rec]))
+   [madstap.recex :as rec]
+   [madstap.recex.util :as util]))
 
 (defn yr [y]
   (t/instant (str y "-01-01T00:00:00Z")))
@@ -109,8 +110,8 @@
          (first (rec/times [:october :friday 13] (yr 2019))))))
 
 (deftest normalize-set-test
-  (is (= #{0 1 2 3 4} (rec/normalize-set #{0 #{1} #{2} #{#{3} #{#{4}}}})))
-  (is (= #{1} (rec/normalize-set 1))))
+  (is (= #{0 1 2 3 4} (util/normalize-set #{0 #{1} #{2} #{#{3} #{#{4}}}})))
+  (is (= #{1} (util/normalize-set 1))))
 
 (deftest filters
   (is (true?

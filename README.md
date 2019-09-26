@@ -352,16 +352,14 @@ it is passed to `recex/times`.
 There's also an util function for compiling cron strings to recexes.
 
 ```clojure
-(require '[madstap.recex.cron :as cron])
-
-(cron/cron->recex "/20 12 * * 2-5")
+(recex/cron->recex "/20 12 * * 2-5")
 ;=> [{#time/day-of-week "TUESDAY" #time/day-of-week "FRIDAY"} {:m #{0 20 40}, :h 12}]
 ```
 
 It accepts both the standard 5 slot version of cron, and 6 slot ones with seconds.
 
 ```clojure
-(cron/cron->recex "30 0 0 * * *")
+(recex/cron->recex "30 0 0 * * *")
 ;=> [{:s 30, :m 0, :h 0}]
 ```
 
@@ -370,7 +368,7 @@ Cron strings are compiled to recexes without a specific time zone
 time zone can be specified.
 
 ```clojure
-(cron/cron->recex "0 12 * * *" "America/New_York")
+(recex/cron->recex "0 12 * * *" "America/New_York")
 ;;=> [{:m 0, :h 12} "America/New_York"]
 ```
 
@@ -384,10 +382,10 @@ and recex follows the original cron plus the non-standard (7 = sun).
 
 ```clojure
 ;; Noon last day of february
-(cron/cron->recex "0 12 L 2 *")
+(recex/cron->recex "0 12 L 2 *")
 
 ;; Triple witching hour
-(cron/cron->recex "0 15 * 3,6,9,12 fri#3" "America/New_York")
+(recex/cron->recex "0 15 * 3,6,9,12 fri#3" "America/New_York")
 ```
 
 ### Chime

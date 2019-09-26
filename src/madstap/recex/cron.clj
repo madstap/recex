@@ -1,6 +1,6 @@
 (ns madstap.recex.cron
   (:require
-   [madstap.recex :as recex]
+   [madstap.recex.util :as util]
    [medley.core :as medley]
    [clojure.string :as str]
    [tick.alpha.api :as t]))
@@ -88,7 +88,7 @@
                     {(parse-scalar from) (parse-scalar to)}
                     (parse-scalar x)))))
          (into #{})
-         (recex/normalize-set))))
+         (util/normalize-set))))
 
 (def parse-dow
   (parser parse-dow-scalar t/day-of-week 7))
@@ -106,17 +106,17 @@
       (f s))))
 
 (def parse-s
-  (let [max-s (dec (recex/unit->n :s))]
+  (let [max-s (dec (util/unit->n :s))]
     (-> (parser parse-int identity max-s)
         (wrap-wildcard {0 max-s}))))
 
 (def parse-m
-  (let [max-m (dec (recex/unit->n :m))]
+  (let [max-m (dec (util/unit->n :m))]
     (-> (parser parse-int identity max-m)
         (wrap-wildcard {0 max-m}))))
 
 (def parse-h
-  (let [max-h (dec (recex/unit->n :h))]
+  (let [max-h (dec (util/unit->n :h))]
     (-> (parser parse-int identity max-h)
         (wrap-wildcard {0 max-h}))))
 

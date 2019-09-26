@@ -11,6 +11,8 @@
    [clojure.set :as set]
    [clojure.spec.alpha :as s]
    [clojure.spec.gen.alpha :as gen]
+   [madstap.recex.util :as util]
+   [madstap.recex.cron :as cron]
    [medley.core :as medley]
    [tick.core :as t]
    [time-specs.core :as ts])
@@ -105,25 +107,15 @@
   (cond (ts/local-time? x) x
         (string? x) (try (t/parse x) (catch Exception _ nil))))
 
-(defn normalize-set [x]
-  (if (set? x)
-    (into #{} (mapcat normalize-set) x)
-    #{x}))
-
 (defmacro nested-set-or-one-of [spec]
   `(let [s# ~spec
          set# (s/coll-of s# :kind set?)]
-     (s/with-gen (s/and (s/conformer normalize-set) set#)
+     (s/with-gen (s/and (s/conformer util/normalize-set) set#)
        #(gen/one-of [(s/gen s#) (s/gen set#)]))))
 
-(def unit->n
-  {:h 24
-   :m 60
-   :s 60})
-
-(s/def ::h-int (s/int-in 0 (unit->n :h)))
-(s/def ::m-int (s/int-in 0 (unit->n :m)))
-(s/def ::s-int (s/int-in 0 (unit->n :s)))
+(s/def ::h-int (s/int-in 0 (util/unit->n :h)))
+(s/def ::m-int (s/int-in 0 (util/unit->n :m)))
+(s/def ::s-int (s/int-in 0 (util/unit->n :s)))
 
 (s/def ::h
   (nested-set-or-one-of
@@ -157,7 +149,7 @@
              (if (unit exp)
                [exp true]
                (if fill?
-                 [(assoc exp unit (set (range (unit->n unit)))) true]
+                 [(assoc exp unit (set (range (util/unit->n unit)))) true]
                  [exp false])))
            [t-expr false]
            [:s :m :h])))
@@ -172,7 +164,7 @@
 (defn expand-time-expr [t-expr]
   (let [{hours :h, minutes :m, seconds :s}
         (->> (-> t-expr fill-greater-units fill-lesser-units)
-             (medley/map-vals normalize-set)
+             (medley/map-vals util/normalize-set)
              (medley/map-vals expand-ranges))]
     (for [h hours, m minutes, s seconds]
       (time/of h m s))))
@@ -503,6 +495,26 @@
               (iterate t/inc (t/date zoned-now)))))
 
 (defn times
+  "Generate an infinite sequence of zoned date times from a recex.
+
+  A recex is either a vector consisting of slots, all optional, or a
+  set combining multiple vectors (which are conceptually OR'ed together).
+
+  The slots are:
+  [month day-of-week day-of-month time time-zone dst-options]
+
+  The dst-options is an options map for choosing which way to deal with
+  daylight saving time edge-cases and doesn't follow the same rules as
+  the rest of the slots.
+
+  The rest of the slots are conceptually AND'ed together, which means that
+  they all need to match for each time generated, and in each slot there can
+  be either a single value that must be matched or a set of values in which one
+  of them must match (OR). The values can be either scalar values, which are
+  either java.time objects or shorthands (keywords for months and days-of-week,
+  strings for times and time zones, integer for day-of-month). A value can also
+  be a range, which is a map of {from to} and is inclusive."
+
   ([recex]
    (times recex (t/now)))
   ([recex now]
@@ -511,3 +523,9 @@
    (->> (normalize recex)
         (map #(inner-times (t/instant now) %))
         (apply interleave-time-seqs))))
+
+(def ^{:arglists '([cron tz] [cron])} cron->recex
+  "Transforms a cron string to a recex. In adition to the standard cron syntax,
+  there's also an optional second slot at the start and some of the extra
+  features from the quartz cron dialect are supported."
+  cron/cron->recex)
