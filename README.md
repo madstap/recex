@@ -335,7 +335,7 @@ or month, nth day of week and day.
 ;; These all throw exceptions:
 
 (recex/times [[-1 :friday] 1])
-(recex/times [[1 :monday] -1]
+(recex/times [[1 :monday] -1])
 (recex/times [:february 31])
 
 ;; While probably a mistake, this won't throw as it's still possible
