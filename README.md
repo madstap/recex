@@ -13,7 +13,7 @@ Add dependency
 
 ```clojure
 ;; deps.edn
-madstap/recex {:mvn/version "0.1.1}
+madstap/recex {:mvn/version "0.1.1"}
 
 ;; lein/boot
 [madstap/recex "0.1.1"]
