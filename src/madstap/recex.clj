@@ -108,7 +108,7 @@
 
 (defmacro nested-set-or-one-of [spec]
   `(let [s# ~spec
-         set# (s/coll-of s# :kind set?)]
+         set# (s/coll-of s# :kind set? :min-count 1)]
      (s/with-gen (s/and (s/conformer util/normalize-set) set#)
        #(gen/one-of [(s/gen s#) (s/gen set#)]))))
 
