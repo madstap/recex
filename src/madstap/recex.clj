@@ -48,14 +48,12 @@
 (defn instant-gen []
   (gen/fmap t/instant (s/gen inst?)))
 
-(defmacro range-of [spec]
-  `(let [s# ~spec]
-     (s/map-of s# s# :min-count 1 :gen-max 1 :conform-keys true)))
+(defn range-of [spec]
+  (s/map-of spec spec :min-count 1 :gen-max 1 :conform-keys true))
 
-(defmacro range-or-one-of [spec]
-  `(let [s# ~spec]
-     (s/and (s/or :one s# :range (range-of s#))
-            (s/conformer second))))
+(defn range-or-one-of [spec]
+  (s/and (s/or :one spec :range (range-of spec))
+         (s/conformer second)))
 
 (s/def ::month*
   (s/with-gen (s/and (s/conformer parse-month) t/month?)
@@ -106,11 +104,10 @@
   (cond (t/time? x) x
         (string? x) (try (t/time x) (catch Exception _ nil))))
 
-(defmacro nested-set-or-one-of [spec]
-  `(let [s# ~spec
-         set# (s/coll-of s# :kind set? :min-count 1)]
-     (s/with-gen (s/and (s/conformer util/normalize-set) set#)
-       #(gen/one-of [(s/gen s#) (s/gen set#)]))))
+(defn nested-set-or-one-of [spec]
+  (let [set-spec (s/coll-of spec :kind set? :min-count 1)]
+    (s/with-gen (s/and (s/conformer util/normalize-set) set-spec)
+      #(gen/one-of [(s/gen spec) (s/gen set-spec)]))))
 
 (s/def ::h-int (s/int-in 0 (util/unit->n :h)))
 (s/def ::m-int (s/int-in 0 (util/unit->n :m)))
