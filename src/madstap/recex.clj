@@ -48,8 +48,17 @@
 (defn instant-gen []
   (gen/fmap t/instant (s/gen inst?)))
 
+(defn wrapping-range-of [spec]
+  (s/and (s/map-of spec spec :min-count 1 :gen-max 1 :conform-keys true)
+         #(every? (fn [[start end]] (not= start end)) %)))
+
+(defn wrapping-range-or-one-of [spec]
+  (s/and (s/or :one spec :range (wrapping-range-of spec))
+         (s/conformer second)))
+
 (defn range-of [spec]
-  (s/map-of spec spec :min-count 1 :gen-max 1 :conform-keys true))
+  (s/and (wrapping-range-of spec)
+         #(every? (fn [[start end]] (< start end)) %)))
 
 (defn range-or-one-of [spec]
   (s/and (s/or :one spec :range (range-of spec))
@@ -60,7 +69,7 @@
     month-gen))
 
 (s/def ::month
-  (range-or-one-of ::month*))
+  (wrapping-range-or-one-of ::month*))
 
 (def parse-dow
   (comp t/parse-day str*))
@@ -76,7 +85,7 @@
   (s/int-in -5 (inc -1)))
 
 (s/def ::simple-day-of-week
-  (range-or-one-of ::dow))
+  (wrapping-range-or-one-of ::dow))
 
 (s/def ::nth-day-of-week
   (s/with-gen (s/and vector?
@@ -98,7 +107,7 @@
          :neg (s/int-in -31 (inc -1)))))
 
 (s/def ::day-of-month
-  (range-or-one-of ::day-of-month*))
+  (wrapping-range-or-one-of ::day-of-month*))
 
 (defn parse-time [x]
   (cond (t/time? x) x
@@ -126,7 +135,8 @@
    (range-or-one-of ::s-int)))
 
 (s/def ::time-expr
-  (s/keys :req-un [(or ::h ::m ::s)]))
+  (s/and (s/keys :req-un [(or ::h ::m ::s)])
+         #(set/subset? (set (keys %)) #{:h :m :s})))
 
 (defn fill-lesser-units [t-expr]
   (first
@@ -203,6 +213,11 @@
   (let [keys-spec (s/keys :opt [:madstap.recex.dst/overlap
                                 :madstap.recex.dst/gap])]
     (s/with-gen (s/and
+                 map?
+                 #(set/subset? (set (keys %)) #{:dst/overlap
+                                                :madstap.recex.dst/overlap
+                                                :dst/gap
+                                                :madstap.recex.dst/gap})
                  (s/conformer #(when (map? %)
                                  (set/rename-keys % {:dst/overlap :madstap.recex.dst/overlap
                                                      :dst/gap :madstap.recex.dst/gap})))
