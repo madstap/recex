@@ -4,9 +4,12 @@
    [clojure.spec.alpha :as s]
    [clojure.spec.gen.alpha :as gen]
    [clojure.test :refer [deftest testing is]]
-   [tick.core :as t]
+   [clojure.test.check :as tc]
+   [clojure.test.check.properties :as prop]
+   [clojure.test.check.clojure-test :refer [defspec]]
    [madstap.recex :as rec]
-   [madstap.recex.util :as util]))
+   [madstap.recex.util :as util]
+   [tick.core :as t]))
 
 (defn yr [y]
   (t/instant (str y "-01-01T00:00:00Z")))
@@ -255,4 +258,53 @@
   (is (true? (rec/impossible? [[-1 :friday] 2])))
   (is (false? (rec/impossible? [[-1 :friday] #{2 31}])))
   (is (true? (rec/impossible? [:august [-1 :monday] 24])))
-  (is (false? (rec/impossible? [[-1 :friday] -1]))))
+  (is (false? (rec/impossible? [[-1 :friday] -1])))
+  (is (true? (rec/impossible? [:november 31])))
+  (is (true? (rec/impossible? [:november -31]))))
+
+(defn nilable [gen]
+  (gen/frequency [[1 (gen/return nil)] [9 gen]]))
+
+(defn gen-simple-recex
+  []
+  (->> (gen/tuple (nilable (s/gen ::rec/month*))
+                  (nilable (gen/one-of [(s/gen ::rec/nth-day-of-week)
+                                        (s/gen ::rec/dow)]))
+                  (nilable (s/gen ::rec/day-of-month*))
+                  (nilable (rec/time-gen))
+                  (nilable (rec/zone-id-gen)))
+       (gen/fmap (partial filterv some?))
+       (gen/such-that (complement rec/impossible?))))
+
+(def now #time/instant "2023-03-06T01:45:32.536600Z")
+
+(defn impossible-recex?
+  [recex timeout]
+  (let [fut (future (first (rec/times recex now)))]
+    (loop [n 0]
+      ;; Derefing an impossible sequence hangs the thread, even with a timeout,
+      ;; so we just check if it's realized instead.
+      (if (realized? fut)
+        false
+        (if (> n timeout)
+          (do (future-cancel fut)
+              true)
+          (do (Thread/sleep 1)
+              (recur (inc n))))))))
+
+(def no-impossible-date-combinations
+  "Tries to check if a recex contains an impossible combination of slots.
+  This is dangerous since a lazy sequence generated for an impossible recex will
+  hang the process forever (roughly equivalent to `(filter neg? (range))`)"
+  (prop/for-all [recex (gen-simple-recex)]
+    (not (impossible-recex? recex 2000))))
+
+(defspec impossible-result 1000
+  no-impossible-date-combinations)
+
+(comment
+
+  (def impossible-result
+    (time (tc/quick-check 10000 no-impossible-date-combinations)))
+
+  )

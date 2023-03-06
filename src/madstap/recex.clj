@@ -362,7 +362,7 @@
   (if (or (empty? months) (empty? days))
     false
     (not (some (fn [[m d]]
-                 (<= d (month->max-days m)))
+                 (<= (abs d) (month->max-days m)))
                (combo/cartesian-product months days)))))
 
 (defn impossible-nth-day-of-week? [months dows days]
