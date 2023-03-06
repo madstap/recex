@@ -3,7 +3,7 @@
    [madstap.recex.util :as util]
    [medley.core :as medley]
    [clojure.string :as str]
-   [tick.alpha.api :as t]))
+   [tick.core :as t]))
 
 ;; https://crontab.guru
 ;; https://www.pantz.org/software/cron/croninfo.html
@@ -45,7 +45,7 @@
   (next (re-find #"^([^#]+)#([^#]+)$" s)))
 
 (defn split-last [s]
-  (if-some [[_ day n] (re-find #"(?i)^([^L]+)?L(-\d+)?" s)]
+  (when-some [[_ day n] (re-find #"(?i)^([^L]+)?L(-\d+)?" s)]
     [day (or (some-> n (subs 1)) "1")]))
 
 (defn dow* [s]

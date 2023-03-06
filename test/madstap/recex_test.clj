@@ -3,7 +3,7 @@
    [cljc.java-time.zoned-date-time :as zoned-date-time]
    [clojure.spec.alpha :as s]
    [clojure.spec.gen.alpha :as gen]
-   [clojure.test :refer [deftest testing is are run-tests test-var]]
+   [clojure.test :refer [deftest testing is]]
    [tick.core :as t]
    [madstap.recex :as rec]
    [madstap.recex.util :as util]))

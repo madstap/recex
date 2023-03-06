@@ -14,15 +14,14 @@
    [madstap.recex.util :as util]
    [madstap.recex.cron :as cron]
    [medley.core :as medley]
-   [tick.core :as t]
-   [time-specs.core :as ts])
+   [tick.core :as t])
   (:import (java.time.zone ZoneOffsetTransition ZoneRules)))
 
 (defn str* [x]
   (if (ident? x) (name x) (str x)))
 
 (defn parse-month [x]
-  (if (ts/month? x)
+  (if (t/month? x)
     x
     (t/parse-month (str* x))))
 
@@ -47,7 +46,7 @@
   (s/gen (into #{} (map zone-id/of) (zone-id/get-available-zone-ids))))
 
 (defn instant-gen []
-  (gen/fmap #(instant/of-epoch-milli (.getTime %)) (s/gen inst?)))
+  (gen/fmap t/instant (s/gen inst?)))
 
 (defmacro range-of [spec]
   `(let [s# ~spec]
@@ -59,7 +58,7 @@
             (s/conformer second))))
 
 (s/def ::month*
-  (s/with-gen (s/and (s/conformer parse-month) ts/month?)
+  (s/with-gen (s/and (s/conformer parse-month) t/month?)
     month-gen))
 
 (s/def ::month
@@ -69,7 +68,7 @@
   (comp t/parse-day str*))
 
 (s/def ::dow
-  (s/with-gen (s/and (s/conformer parse-dow) ts/day-of-week?)
+  (s/with-gen (s/and (s/conformer parse-dow) t/day-of-week?)
     day-of-week-gen))
 
 (s/def ::pos-nth-day-of-week
@@ -104,8 +103,8 @@
   (range-or-one-of ::day-of-month*))
 
 (defn parse-time [x]
-  (cond (ts/local-time? x) x
-        (string? x) (try (t/parse x) (catch Exception _ nil))))
+  (cond (t/time? x) x
+        (string? x) (try (t/time x) (catch Exception _ nil))))
 
 (defmacro nested-set-or-one-of [spec]
   `(let [s# ~spec
@@ -163,28 +162,30 @@
 
 (defn expand-time-expr [t-expr]
   (let [{hours :h, minutes :m, seconds :s}
-        (->> (-> t-expr fill-greater-units fill-lesser-units)
-             (medley/map-vals util/normalize-set)
-             (medley/map-vals expand-ranges))]
+        (-> t-expr
+            fill-greater-units
+            fill-lesser-units
+            (update-vals util/normalize-set)
+            (update-vals expand-ranges))]
     (for [h hours, m minutes, s seconds]
       (time/of h m s))))
 
 (defn expand-times [times]
-  (into #{} (mapcat #(if (ts/local-time? %) #{%} (expand-time-expr %))) times))
+  (into #{} (mapcat #(if (t/time? %) #{%} (expand-time-expr %))) times))
 
 (s/def ::time
   (s/and
-   (s/or :time (s/with-gen (s/and (s/conformer parse-time) ts/local-time?)
+   (s/or :time (s/with-gen (s/and (s/conformer parse-time) t/time?)
                  time-gen)
          :time-expr ::time-expr)
    (s/conformer second)))
 
 (defn parse-tz [x]
-  (cond (ts/zone-id? x) x
+  (cond (t/zone? x) x
         (string? x) (try (t/zone x) (catch Exception _ nil))))
 
 (s/def ::tz
-  (s/with-gen (s/and (s/conformer parse-tz) ts/zone-id?)
+  (s/with-gen (s/and (s/conformer parse-tz) t/zone?)
     zone-id-gen))
 
 (s/def :madstap.recex.dst/transition-type
@@ -514,7 +515,6 @@
   either java.time objects or shorthands (keywords for months and days-of-week,
   strings for times and time zones, integer for day-of-month). A value can also
   be a range, which is a map of {from to} and is inclusive."
-
   ([recex]
    (times recex (t/now)))
   ([recex now]
