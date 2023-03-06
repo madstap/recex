@@ -1,13 +1,13 @@
 {:deps {org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/math.combinatorics {:mvn/version "0.1.6"}
         tick/tick {:mvn/version "0.6.0"}
-        medley/medley {:mvn/version "1.6.0"}}
+        dev.weavejester/medley {:mvn/version "1.6.0"}}
 
  :aliases
  {:test
   {:extra-paths ["test"]
-   :extra-deps {lambdaisland/kaocha {:mvn/version "0.0-529"}
-                org.clojure/test.check {:mvn/version "0.9.0"}}}
+   :extra-deps {lambdaisland/kaocha {:mvn/version "1.80.1274"}
+                org.clojure/test.check {:mvn/version "1.1.1"}}}
 
   :jar
   {:extra-deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git"
