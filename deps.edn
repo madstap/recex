@@ -9,6 +9,9 @@
                 lambdaisland/kaocha {:mvn/version "1.80.1274"}
                 org.clojure/test.check {:mvn/version "1.1.1"}}}
 
+  :dev
+  {:extra-deps {jarohen/chime {:mvn/version "0.3.3"}}}
+
   :jar {:replace-deps {com.github.seancorfield/depstar {:mvn/version "2.0.216"}}
         :exec-fn hf.depstar/jar
         :exec-args {:jar "recex.jar"

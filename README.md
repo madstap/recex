@@ -3,9 +3,9 @@
 A recurrence expression, or a recex, is a domain specific language to
 express an infinite series of recurring times.
 
-## Project maturity
+## Project status
 
-Alpha. Breaking changes unlikely, but possible.
+May gain more features at some point, but the current functionality is pretty much "done".
 
 ## Quickstart
 
@@ -13,10 +13,10 @@ Add dependency
 
 ```clojure
 ;; deps.edn
-madstap/recex {:mvn/version "0.1.1"}
+madstap/recex {:mvn/version "0.1.3"}
 
-;; lein/boot
-[madstap/recex "0.1.1"]
+;; lein
+[madstap/recex "0.1.3"]
 ```
 
 Generate schedule
@@ -25,11 +25,27 @@ Generate schedule
 (ns my.app
   (:require
    [madstap.recex :as recex]
-   [tick.alpha.api :as t]))
+   [tick.api :as t]))
 
 (take 2 (recex/times ["12:00" "Europe/London"] (t/now)))
 ;; => (#time/zoned-date-time "2019-09-26T12:00+01:00[Europe/London]"
 ;;     #time/zoned-date-time "2019-09-27T12:00+01:00[Europe/London]")
+```
+
+Use for scheduling (with the excellent [Chime](https://github.com/jarohen/chime)).
+
+```clojure
+jarohen/chime {:mvn/version "0.3.3"}
+```
+
+```clojure
+[jarohen/chime "0.1.3"]
+```
+
+```clojure
+(require '[chime.core :as chime])
+
+(chime/chime-at (times ["16:47" "UTC"]) println)
 ```
 
 [Docs](#Usage)
@@ -67,9 +83,6 @@ makes my emacs stutter. It also makes the printout pretty unreadable.
 The second one is that you might want to make the schedule configurable.
 If I want a job to execute at 10:30 every day instead of at 9, that should
 ideally involve changing a config file, and not changing code.
-
-They do mention that you can use a dsl to generate the sequence that you
-feed into chime, which is exactly what I [recommend doing](#Chime) with recex.
 
 ### Structured data
 
@@ -387,23 +400,6 @@ and recex follows the original cron plus the non-standard (7 = sun).
 ;; Triple witching hour
 (recex/cron->recex "0 15 * 3,6,9,12 fri#3" "America/New_York")
 ```
-
-### Chime
-
-To use recex together with chime it's necessary to translate
-`java.time.ZonedDateTime`s to joda time, because chime was written
-before java.time was a thing.
-
-(Needs [clj-time](https://github.com/clj-time/clj-time) as a dependency.)
-
-```clojure
-(require '[clj-time.coerce :as ct.coerce])
-
-(defn zdt->joda-time [zdt]
-  (-> zdt .toInstant java.util.Date/from ct.coerce/from-date))
-```
-
-(Maybe someone could port chime to java.time)
 
 ## Prior art
 
