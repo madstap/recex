@@ -1,12 +1,12 @@
-{:deps {org.clojure/clojure {:mvn/version "1.11.1"}
-        org.clojure/math.combinatorics {:mvn/version "0.1.6"}
-        tick/tick {:mvn/version "0.6.0"}
-        dev.weavejester/medley {:mvn/version "1.6.0"}}
+{:deps {org.clojure/math.combinatorics {:mvn/version "0.3.0"}
+        tick/tick {:mvn/version "1.0"}
+        dev.weavejester/medley {:mvn/version "1.8.1"}}
 
  :aliases
  {:test
   {:extra-paths ["test"]
-   :extra-deps {lambdaisland/kaocha {:mvn/version "1.80.1274"}
+   :extra-deps {org.clojure/clojure {:mvn/version "1.11.0"}
+                lambdaisland/kaocha {:mvn/version "1.80.1274"}
                 org.clojure/test.check {:mvn/version "1.1.1"}}}
 
   :jar

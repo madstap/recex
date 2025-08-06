@@ -25,10 +25,6 @@
 (defn split-range [s]
   (next (re-find #"(?i)^([^\-^L]+)-([^\-]+)$" s)))
 
-(defn parse-int [s]
-  (try (Integer/parseInt s)
-       (catch Exception _)))
-
 (defn filter-steps [step xs]
   (->> (medley/indexed xs)
        (keep (fn [[idx x]]
@@ -38,7 +34,7 @@
 (def wildcard? (comp boolean #{"*" "?"}))
 
 (defn parse-month-scalar [s]
-  (or (some-> (parse-int s) (t/month))
+  (or (some-> (parse-long s) (t/month))
       (t/month s)))
 
 (defn split-nth [s]
@@ -49,7 +45,7 @@
     [day (or (some-> n (subs 1)) "1")]))
 
 (defn dow* [s]
-  (if-some [i (parse-int s)]
+  (if-some [i (parse-long s)]
     (if (zero? i) (t/day-of-week "SUN") (t/day-of-week i))
     (if (= "thu" (str/lower-case s))
       (t/day-of-week "thursday")
@@ -57,14 +53,14 @@
 
 (defn parse-day-scalar [s]
   (if-some [[_ n] (split-last s)]
-    (- (parse-int n))
-    (parse-int s)))
+    (- (parse-long n))
+    (parse-long s)))
 
 (defn parse-dow-scalar [s]
   (if-some [[day n] (split-nth s)]
-    [(parse-int n) (dow* day)]
+    [(parse-long n) (dow* day)]
     (if-some [[day n] (split-last s)]
-      [(- (parse-int n)) (dow* day)]
+      [(- (parse-long n)) (dow* day)]
       (dow* s))))
 
 (defn to-int [x]
@@ -81,7 +77,7 @@
                            (range (to-int (parse-scalar from))
                                   (inc (to-int (parse-scalar to))))
                            (range (to-int (parse-scalar base)) (inc max))))
-                       (filter-steps (parse-int step))
+                       (filter-steps (parse-long step))
                        (map constructor)
                        (set))
                   (if-let [[from to] (split-range x)]
@@ -107,17 +103,17 @@
 
 (def parse-s
   (let [max-s (dec (util/unit->n :s))]
-    (-> (parser parse-int identity max-s)
+    (-> (parser parse-long identity max-s)
         (wrap-wildcard {0 max-s}))))
 
 (def parse-m
   (let [max-m (dec (util/unit->n :m))]
-    (-> (parser parse-int identity max-m)
+    (-> (parser parse-long identity max-m)
         (wrap-wildcard {0 max-m}))))
 
 (def parse-h
   (let [max-h (dec (util/unit->n :h))]
-    (-> (parser parse-int identity max-h)
+    (-> (parser parse-long identity max-h)
         (wrap-wildcard {0 max-h}))))
 
 (defn unwrap-simple [x]
