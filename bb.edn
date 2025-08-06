@@ -1,0 +1,33 @@
+{:paths ["tasks"]
+ :tasks
+ {test (apply clojure "-Srepro -M:test -m kaocha.runner" *command-line-args*)
+
+  clean (shell "rm -f recex.jar")
+
+  build (clojure "-X:jar")
+
+  deploy {:depends [clean]
+          :requires ([deploy])
+          :task (let [version (first *command-line-args*)
+                      deploy-token (slurp "deploy_token")]
+                  (assert version "Need to specify a version")
+                  (assert (deploy/on-main?) "Need to be on main")
+                  (assert (deploy/clean-workdir?)
+                          "Need to have a clean working directory to deploy.")
+
+                  (shell "bb test --no-watch")
+
+                  (deploy/update-version version)
+
+                  (println "Building jar")
+                  (shell "bb build")
+
+                  (println "Deploying to clojars")
+                  (clojure {:extra-env {"CLOJARS_USERNAME" "madstap"
+                                        "CLOJARS_PASSWORD" deploy-token}}
+                           "-X:deploy")
+
+                  (println "Committing and pushing changes")
+                  (shell "git add .")
+                  (shell (str "git commit -m " "'Release version " version "'"))
+                  (shell "git push"))}}}
