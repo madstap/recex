@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>madstap</groupId>
   <artifactId>recex</artifactId>
-  <version>0.1.1</version>
+  <version>0.1.2</version>
   <name>recex</name>
   <licenses>
     <license>
@@ -17,27 +17,22 @@
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.10.1</version>
+      <version>1.10.3</version>
     </dependency>
     <dependency>
-      <groupId>madstap</groupId>
-      <artifactId>hugin</artifactId>
-      <version>0.1.5</version>
+      <groupId>org.clojure</groupId>
+      <artifactId>math.combinatorics</artifactId>
+      <version>0.3.0</version>
     </dependency>
     <dependency>
       <groupId>tick</groupId>
       <artifactId>tick</artifactId>
-      <version>0.4.19-alpha</version>
+      <version>1.0</version>
     </dependency>
     <dependency>
-      <groupId>time-specs</groupId>
-      <artifactId>time-specs</artifactId>
-      <version>0.1.0-SNAPSHOT</version>
-    </dependency>
-    <dependency>
-      <groupId>medley</groupId>
+      <groupId>dev.weavejester</groupId>
       <artifactId>medley</artifactId>
-      <version>1.1.0</version>
+      <version>1.8.1</version>
     </dependency>
   </dependencies>
   <build>
