@@ -15,7 +15,7 @@
                     :sync-pom true
                     :group-id "madstap"
                     :artifact-id "recex"
-                    :version "0.1.2"}}
+                    :version "0.1.3"}}
 
   :deploy {:replace-deps {slipset/deps-deploy {:mvn/version "0.1.5"}}
            :exec-fn deps-deploy.deps-deploy/deploy
