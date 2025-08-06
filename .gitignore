@@ -2,3 +2,4 @@
 .cpcache
 .clj-kondo
 recex.jar
+deploy_token

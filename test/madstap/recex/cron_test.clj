@@ -1,7 +1,7 @@
 (ns madstap.recex.cron-test
   (:require
    [clojure.string :as str]
-   [clojure.test :refer [deftest testing is are run-tests test-var]]
+   [clojure.test :refer [deftest is]]
    [madstap.recex :as recex]))
 
 (defn recex= [& recexes]
