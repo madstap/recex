@@ -5,6 +5,14 @@
   <artifactId>recex</artifactId>
   <version>0.1.1</version>
   <name>recex</name>
+  <licenses>
+    <license>
+      <name>Eclipse Public License 2.0</name>
+      <comments>
+        All rights reserved. This program and the accompanying materials are made available under the terms of the Eclipse Public License 2.0 which accompanies this distribution, and is available at https://www.eclipse.org/legal/epl/epl-v20.html
+      </comments>
+    </license>
+  </licenses>
   <dependencies>
     <dependency>
       <groupId>org.clojure</groupId>
